@@ -1,0 +1,4 @@
+# The deterministic core (src/) is pure stdlib Python — no runtime deps.
+# These are for development / running the kit.
+pytest>=7.0
+PyYAML>=6.0

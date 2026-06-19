@@ -1,0 +1,62 @@
+# Copy to config.yaml and edit. config.yaml is gitignored.
+# Profile below is tuned for a SMALL ($500) day-trading-oriented account.
+
+# Operating mode:
+#   demo   - compute signals + news, never call review/place. Logs intended trades.
+#   manual - review_equity_order + show preview, place ONLY after user confirms.
+#   auto   - place automatically after review passes and risk checks approve.
+mode: manual
+
+account:
+  starting_capital_usd: 500
+  account_type: margin      # PDT was abolished (eff. 2026-06-04), so a small
+                            # margin account can day-trade without the old 3/week
+                            # cap. 'cash' still settles T+1 (dollars not reusable
+                            # same day); 'margin' allows same-day reuse.
+
+# Symbols to watch. For a $500 day-trading account, keep to a few LIQUID,
+# affordable, high-volatility names you can buy meaningful fractional size of.
+watchlist:
+  - SPY
+  - QQQ
+  - AAPL
+  - NVDA
+  - TSLA
+  - AMD
+
+# Hard risk limits — enforced by src/risk.py. Sized for a tiny account.
+risk:
+  max_position_pct: 0.34     # up to ~$170 per name (a tiny account needs few, larger bets)
+  max_positions: 3           # focus; don't spread $500 across many names
+  min_order_usd: 5
+  max_order_usd: 250
+  pdt_protection: false      # PDT abolished 2026-06-04. Set true ONLY if your
+                             # broker is still in its phase-in window (to 2027).
+  daily_loss_limit_usd: 50   # stop trading for the day after this realized loss
+                             # (this is now the main brake, not a day-trade count)
+  exclusions: []
+
+# Signal tuning. Day trading uses SHORTER lookbacks than swing trading.
+# When feeding intraday bars (e.g. 5-min), these are in *bars*, not days.
+signals:
+  short_period: 9
+  long_period: 21
+  rsi_period: 14
+  rsi_oversold: 30
+  rsi_overbought: 70
+  buy_threshold: 2
+  sell_threshold: -2
+  use_vwap: true             # VWAP is the day trader's anchor — keep on
+
+# News-driven trading. The agent pulls fresh headlines each cycle and runs them
+# through src/news.classify for a structured tilt.
+news:
+  enabled: true
+  lookback_minutes: 120      # only act on recent catalysts
+  block_on_halt_risk: true   # stand aside on halts / pending earnings / SEC, etc.
+  require_news_for_entry: false  # set true to only enter names with a fresh catalyst
+
+# Day-trading cadence. Respect market hours (and avoid the first/last 5 min chop
+# unless a clear catalyst). Interval in seconds.
+run_interval_seconds: 300
+trade_only_market_hours: true
