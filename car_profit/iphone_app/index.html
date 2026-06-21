@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>KIA 提成计算器</title>
+<!-- iOS: 添加到主屏幕后全屏运行，像原生 App -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KIA提成">
+<meta name="theme-color" content="#1F4E78">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%231F4E78'/%3E%3Ctext x='90' y='118' font-size='90' text-anchor='middle' fill='white' font-family='Arial'%3E%24%3C/text%3E%3C/svg%3E">
+<style>
+  :root{ --blue:#1F4E78; --green:#2e7d32; --bg:#f2f4f7; --card:#fff; --line:#e3e7ee; --muted:#8a93a2; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body{ margin:0; font-family:-apple-system,"PingFang SC","Helvetica Neue",Arial,sans-serif;
+        background:var(--bg); color:#1a2230; padding-bottom:env(safe-area-inset-bottom); }
+  header{ background:var(--blue); color:#fff; padding:calc(env(safe-area-inset-top) + 16px) 18px 16px;
+          position:sticky; top:0; z-index:10; }
+  header h1{ margin:0; font-size:20px; }
+  header p{ margin:4px 0 0; font-size:12px; opacity:.8; }
+  .wrap{ padding:14px; max-width:560px; margin:0 auto; }
+  .card{ background:var(--card); border-radius:16px; padding:16px; margin-bottom:14px;
+         box-shadow:0 1px 3px rgba(20,30,60,.06); }
+  .card h2{ margin:0 0 12px; font-size:15px; color:var(--blue); }
+  label{ display:block; font-size:13px; color:var(--muted); margin:10px 0 5px; }
+  input[type=text], input[type=number]{ width:100%; padding:13px; font-size:17px; border:1px solid var(--line);
+         border-radius:11px; background:#fafbfc; }
+  input:focus{ outline:none; border-color:var(--blue); background:#fff; }
+  .row{ display:flex; gap:10px; }
+  .row > div{ flex:1; }
+  .toggle{ display:flex; align-items:center; justify-content:space-between; padding:13px;
+           border:1px solid var(--line); border-radius:11px; background:#fafbfc; margin-top:6px; }
+  .toggle span{ font-size:16px; }
+  .switch{ position:relative; width:52px; height:30px; flex:none; }
+  .switch input{ display:none; }
+  .slider{ position:absolute; inset:0; background:#ccd2dc; border-radius:30px; transition:.2s; }
+  .slider:before{ content:""; position:absolute; width:24px; height:24px; left:3px; top:3px;
+                  background:#fff; border-radius:50%; transition:.2s; }
+  .switch input:checked + .slider{ background:var(--green); }
+  .switch input:checked + .slider:before{ transform:translateX(22px); }
+  .preview{ background:#eef6ee; border-radius:12px; padding:14px; margin-top:14px; text-align:center; }
+  .preview .big{ font-size:30px; font-weight:700; color:var(--green); }
+  .preview .sub{ font-size:12px; color:var(--muted); margin-top:4px; }
+  button.primary{ width:100%; padding:15px; font-size:17px; font-weight:600; color:#fff;
+         background:var(--blue); border:none; border-radius:12px; margin-top:14px; }
+  button.primary:active{ opacity:.85; }
+  .totals{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .tbox{ background:#f6f8fb; border-radius:12px; padding:12px; text-align:center; }
+  .tbox .v{ font-size:20px; font-weight:700; color:var(--blue); }
+  .tbox .l{ font-size:11px; color:var(--muted); margin-top:3px; }
+  .deal{ border:1px solid var(--line); border-radius:12px; padding:12px; margin-top:10px;
+         display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .deal .name{ font-weight:600; font-size:15px; }
+  .deal .bd{ font-size:11px; color:var(--muted); margin-top:4px; line-height:1.5; }
+  .deal .comm{ font-size:18px; font-weight:700; color:var(--green); white-space:nowrap; }
+  .del{ background:none; border:none; color:#c0392b; font-size:13px; margin-top:6px; padding:0; }
+  .empty{ text-align:center; color:var(--muted); font-size:13px; padding:18px 0; }
+  details summary{ font-size:13px; color:var(--blue); cursor:pointer; }
+  .hint{ font-size:11px; color:var(--muted); margin-top:8px; line-height:1.5; }
+  .pct-wrap{ position:relative; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🚗 KIA 提成计算器</h1>
+  <p>提成 = 比例 ×（LUX×单价 + Greenway + 车架利润 + Trade差价）</p>
+</header>
+
+<div class="wrap">
+
+  <!-- 参数设置 -->
+  <div class="card">
+    <details>
+      <summary>⚙️ 参数设置（点开可改）</summary>
+      <div class="row">
+        <div>
+          <label>LUX Care 单份 ($)</label>
+          <input type="number" id="luxPrice" inputmode="decimal">
+        </div>
+        <div>
+          <label>Greenway ($)</label>
+          <input type="number" id="gwPrice" inputmode="decimal">
+        </div>
+      </div>
+      <label>我的提成比例 (%)</label>
+      <input type="number" id="rate" inputmode="decimal">
+      <div class="hint">改完自动保存，下次打开还在。</div>
+    </details>
+  </div>
+
+  <!-- 新增成交 -->
+  <div class="card">
+    <h2>＋ 新增成交</h2>
+    <label>客户 / 车型</label>
+    <input type="text" id="cust" placeholder="例：张三 / K5">
+
+    <div class="row">
+      <div>
+        <label>LUX Care 份数</label>
+        <input type="number" id="lux" inputmode="numeric" value="0">
+      </div>
+      <div>
+        <label>车架利润 ($)</label>
+        <input type="number" id="front" inputmode="decimal" value="0">
+      </div>
+    </div>
+
+    <div class="toggle">
+      <span>卖了 Greenway Advantage</span>
+      <label class="switch"><input type="checkbox" id="gw"><span class="slider"></span></label>
+    </div>
+
+    <div class="toggle">
+      <span>有置换 (Trade-in)</span>
+      <label class="switch"><input type="checkbox" id="hasTrade"><span class="slider"></span></label>
+    </div>
+
+    <div id="tradeFields" style="display:none">
+      <div class="row">
+        <div>
+          <label>Trade 实际价值 ($)</label>
+          <input type="number" id="tval" inputmode="decimal" value="0">
+        </div>
+        <div>
+          <label>折抵给客户 ($)</label>
+          <input type="number" id="tgive" inputmode="decimal" value="0">
+        </div>
+      </div>
+    </div>
+
+    <div class="preview">
+      <div class="big" id="pvComm">$0.00</div>
+      <div class="sub">这单我的提成 ｜ 店总利润 <span id="pvGross">$0.00</span></div>
+    </div>
+
+    <button class="primary" id="saveBtn">保存这一单</button>
+  </div>
+
+  <!-- 汇总 -->
+  <div class="card">
+    <h2>📊 汇总</h2>
+    <div class="totals">
+      <div class="tbox"><div class="v" id="tCount">0</div><div class="l">成交单数</div></div>
+      <div class="tbox"><div class="v" id="tComm">$0</div><div class="l">我的总提成</div></div>
+      <div class="tbox"><div class="v" id="tGross">$0</div><div class="l">店总利润</div></div>
+      <div class="tbox"><div class="v" id="tAvg">$0</div><div class="l">平均每单提成</div></div>
+    </div>
+  </div>
+
+  <!-- 成交记录 -->
+  <div class="card">
+    <h2>📋 成交记录</h2>
+    <div id="dealList"><div class="empty">还没有记录，保存第一单试试。</div></div>
+  </div>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const money = n => "$" + (Number(n)||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const money0 = n => "$" + Math.round(Number(n)||0).toLocaleString("en-US");
+
+const DEF = { luxPrice:50, gwPrice:2995, rate:25 };
+let settings = JSON.parse(localStorage.getItem("kia_settings")||"null") || {...DEF};
+let deals = JSON.parse(localStorage.getItem("kia_deals")||"[]");
+
+function saveSettings(){
+  settings.luxPrice = parseFloat($("luxPrice").value)||0;
+  settings.gwPrice  = parseFloat($("gwPrice").value)||0;
+  settings.rate     = parseFloat($("rate").value)||0;
+  localStorage.setItem("kia_settings", JSON.stringify(settings));
+  preview(); renderTotals(); renderDeals();
+}
+function loadSettings(){
+  $("luxPrice").value = settings.luxPrice;
+  $("gwPrice").value  = settings.gwPrice;
+  $("rate").value     = settings.rate;
+}
+
+// 用某套参数算一单（记录里存原始数据，按当前参数实时算，参数变了历史也跟着变）
+function calc(d){
+  const lux  = (Number(d.lux)||0) * settings.luxPrice;
+  const gw   = d.gw ? settings.gwPrice : 0;
+  const front= Number(d.front)||0;
+  const spread = d.hasTrade ? ((Number(d.tval)||0) - (Number(d.tgive)||0)) : 0;
+  const gross = lux + gw + front + spread;
+  const comm  = gross * (settings.rate/100);
+  return { gross, comm, spread, lux, gw, front };
+}
+
+function currentForm(){
+  return {
+    cust: $("cust").value.trim(),
+    lux: $("lux").value,
+    gw: $("gw").checked,
+    front: $("front").value,
+    hasTrade: $("hasTrade").checked,
+    tval: $("tval").value,
+    tgive: $("tgive").value
+  };
+}
+
+function preview(){
+  const r = calc(currentForm());
+  $("pvComm").textContent = money(r.comm);
+  $("pvGross").textContent = money(r.gross);
+}
+
+function renderTotals(){
+  let gross=0, comm=0;
+  deals.forEach(d=>{ const r=calc(d); gross+=r.gross; comm+=r.comm; });
+  $("tCount").textContent = deals.length;
+  $("tComm").textContent  = money0(comm);
+  $("tGross").textContent = money0(gross);
+  $("tAvg").textContent   = money0(deals.length? comm/deals.length : 0);
+}
+
+function renderDeals(){
+  const box = $("dealList");
+  if(!deals.length){ box.innerHTML = '<div class="empty">还没有记录，保存第一单试试。</div>'; return; }
+  box.innerHTML = "";
+  deals.slice().reverse().forEach((d)=>{
+    const r = calc(d);
+    const idx = deals.indexOf(d);
+    const parts = [];
+    if(Number(d.lux)>0) parts.push(`LUX×${d.lux}=${money0(r.lux)}`);
+    if(d.gw) parts.push(`Greenway ${money0(r.gw)}`);
+    if(Number(d.front)) parts.push(`车架 ${money0(r.front)}`);
+    if(d.hasTrade) parts.push(`Trade差价 ${money0(r.spread)}`);
+    const el = document.createElement("div");
+    el.className = "deal";
+    el.innerHTML = `<div>
+        <div class="name">${d.cust||"(未命名)"}</div>
+        <div class="bd">${parts.join(" ＋ ")||"无项目"}<br>店总利润 ${money(r.gross)}</div>
+        <button class="del" data-i="${idx}">删除</button>
+      </div>
+      <div class="comm">${money(r.comm)}</div>`;
+    box.appendChild(el);
+  });
+  box.querySelectorAll(".del").forEach(b=>{
+    b.onclick = ()=>{ deals.splice(+b.dataset.i,1); persist(); };
+  });
+}
+
+function persist(){
+  localStorage.setItem("kia_deals", JSON.stringify(deals));
+  renderTotals(); renderDeals();
+}
+
+function save(){
+  const d = currentForm();
+  if(!d.cust && !d.lux && !d.gw && !d.front && !d.hasTrade){ return; }
+  deals.push(d);
+  persist();
+  // reset form
+  $("cust").value=""; $("lux").value="0"; $("front").value="0";
+  $("gw").checked=false; $("hasTrade").checked=false;
+  $("tval").value="0"; $("tgive").value="0"; $("tradeFields").style.display="none";
+  preview();
+  $("cust").focus();
+}
+
+// wire up
+["luxPrice","gwPrice","rate"].forEach(id=> $(id).addEventListener("input", saveSettings));
+["cust","lux","front","tval","tgive"].forEach(id=> $(id).addEventListener("input", preview));
+$("gw").addEventListener("change", preview);
+$("hasTrade").addEventListener("change", e=>{
+  $("tradeFields").style.display = e.target.checked ? "block" : "none";
+  preview();
+});
+$("saveBtn").addEventListener("click", save);
+
+loadSettings();
+preview(); renderTotals(); renderDeals();
+</script>
+</body>
+</html>
