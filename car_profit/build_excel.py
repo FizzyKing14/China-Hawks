@@ -1,179 +1,185 @@
 #!/usr/bin/env python3
-"""Generate a car-flipping profit tracker as a real .xlsx with live formulas.
+"""KIA 销售提成计算表 (Excel, 带公式).
+
+提成 = 提成比例 × ( LUX Care份数×单价 + Greenway Advantage + 车架利润 + Trade差价 )
 
 Run:  python3 build_excel.py
-Out:  车辆利润表.xlsx
+Out:  KIA提成表.xlsx
 """
 from __future__ import annotations
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.datavalidation import DataValidation
 
-OUT = "车辆利润表.xlsx"
-DATA_ROWS = 60          # how many blank car rows to pre-build with formulas
+OUT = "KIA提成表.xlsx"
+DATA_ROWS = 60
 
-# ---- styling helpers -------------------------------------------------------
+# ---- styling ---------------------------------------------------------------
 HEADER_FILL = PatternFill("solid", fgColor="1F4E78")
 HEADER_FONT = Font(color="FFFFFF", bold=True, size=11)
-INPUT_FILL = PatternFill("solid", fgColor="FFF2CC")   # yellow = type here
-CALC_FILL = PatternFill("solid", fgColor="E2EFDA")    # green = auto-calculated
+INPUT_FILL = PatternFill("solid", fgColor="FFF2CC")    # 黄 = 自己填
+CALC_FILL = PatternFill("solid", fgColor="E2EFDA")     # 绿 = 自动算
+SETTING_FILL = PatternFill("solid", fgColor="FCE4D6")  # 橙 = 参数(可改)
 TITLE_FONT = Font(bold=True, size=16, color="1F4E78")
 LABEL_FONT = Font(bold=True, size=11)
 MONEY = '#,##0.00'
-PCT = '0.0%'
+PCT = '0%'
 THIN = Side(style="thin", color="BFBFBF")
 BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-
-# ---- columns: (header, key, kind, width) -----------------------------------
-# kind: "input" = you type it, "calc" = a formula fills it.
+# table columns: (header, key, kind, width)
 COLUMNS = [
     ("编号", "id", "input", 8),
-    ("车型 / 描述", "desc", "input", 22),
-    ("进车价", "buy", "input", 12),
-    ("修车/翻新", "recon", "input", 12),
-    ("运费", "ship", "input", 10),
-    ("过户/上牌/检测", "fees", "input", 14),
-    ("其他杂费", "misc", "input", 11),
-    ("总成本", "cost", "calc", 12),
-    ("卖出价", "sell", "input", 12),
-    ("利润", "profit", "calc", 12),
-    ("利润率", "margin", "calc", 10),
-    ("回报率 ROI", "roi", "calc", 11),
-    ("状态", "status", "calc", 10),
+    ("客户 / 车型", "cust", "input", 20),
+    ("LUX Care 份数", "lux", "input", 12),
+    ("Greenway\n(是/否)", "gw", "input", 11),
+    ("车架利润", "front", "input", 12),
+    ("Trade 实际价值", "tval", "input", 13),
+    ("Trade 折抵价", "tgive", "input", 12),
+    ("Trade 差价", "tspread", "calc", 11),
+    ("总利润(店)", "gross", "calc", 12),
+    ("我的提成", "comm", "calc", 13),
 ]
-COL = {c[1]: i + 1 for i, c in enumerate(COLUMNS)}   # key -> 1-based col index
+COL = {c[1]: i + 1 for i, c in enumerate(COLUMNS)}
 
 
 def cl(key: str) -> str:
-    """Column letter for a data key."""
     return get_column_letter(COL[key])
 
 
 def build() -> None:
     wb = Workbook()
     ws = wb.active
-    ws.title = "车辆利润"
+    ws.title = "提成"
 
-    # Title row
-    ws.merge_cells("A1:M1")
-    ws["A1"] = "🚗 车辆买卖利润表"
+    # title
+    ws.merge_cells("A1:J1")
+    ws["A1"] = "🚗 KIA 销售提成计算表"
     ws["A1"].font = TITLE_FONT
-    ws["A1"].alignment = Alignment(horizontal="left", vertical="center")
     ws.row_dimensions[1].height = 26
-
-    ws.merge_cells("A2:M2")
-    ws["A2"] = ("黄色格子=自己填  |  绿色格子=自动算  |  "
-                "卖出价留空表示还没卖出（在售）")
+    ws.merge_cells("A2:J2")
+    ws["A2"] = ("黄色=自己填  |  橙色=参数(可改)  |  绿色=自动算  |  "
+                "没有 Trade 就把 Trade 两列留空")
     ws["A2"].font = Font(italic=True, size=10, color="808080")
 
-    header_row = 4
-    first_data = header_row + 1
-    last_data = first_data + DATA_ROWS - 1
+    # ---- settings box (rows 4-6): label merged A:B, value in C ----------
+    settings = [
+        ("LUX Care 单份利润 ($)", 50, MONEY),
+        ("Greenway Advantage ($)", 2995, MONEY),
+        ("我的提成比例", 0.25, PCT),
+    ]
+    LUX_PRICE = "$C$4"
+    GW_PRICE = "$C$5"
+    RATE = "$C$6"
+    for i, (label, val, fmt) in enumerate(settings):
+        r = 4 + i
+        ws.merge_cells(f"A{r}:B{r}")
+        lc = ws.cell(row=r, column=1, value=label)
+        lc.font = LABEL_FONT
+        lc.alignment = Alignment(horizontal="right", vertical="center")
+        vc = ws.cell(row=r, column=3, value=val)
+        vc.number_format = fmt
+        vc.fill = SETTING_FILL
+        vc.border = BORDER
+        vc.font = Font(bold=True)
+        vc.alignment = CENTER
 
-    # Header
+    header_row = 8
+    first = header_row + 1
+    last = first + DATA_ROWS - 1
+
+    # header
     for c in COLUMNS:
-        col_idx = COL[c[1]]
-        cell = ws.cell(row=header_row, column=col_idx, value=c[0])
+        ci = COL[c[1]]
+        cell = ws.cell(row=header_row, column=ci, value=c[0])
         cell.fill = HEADER_FILL
         cell.font = HEADER_FONT
         cell.alignment = CENTER
         cell.border = BORDER
-        ws.column_dimensions[get_column_letter(col_idx)].width = c[3]
-    ws.row_dimensions[header_row].height = 30
+        ws.column_dimensions[get_column_letter(ci)].width = c[3]
+    ws.row_dimensions[header_row].height = 32
 
-    # Data rows with formulas
-    for r in range(first_data, last_data + 1):
+    # data rows
+    for r in range(first, last + 1):
         for c in COLUMNS:
             key = c[1]
             cell = ws.cell(row=r, column=COL[key])
             cell.border = BORDER
             cell.alignment = Alignment(horizontal="center", vertical="center")
-
-            if key == "cost":
-                cell.value = (f"=IF(COUNT({cl('buy')}{r}:{cl('misc')}{r})=0,\"\","
-                              f"SUM({cl('buy')}{r}:{cl('misc')}{r}))")
+            if key == "tspread":
+                cell.value = (f'=IF(OR({cl("tval")}{r}="",{cl("tgive")}{r}=""),0,'
+                              f'{cl("tval")}{r}-{cl("tgive")}{r})')
                 cell.number_format = MONEY
                 cell.fill = CALC_FILL
-            elif key == "profit":
-                cell.value = (f"=IF(OR({cl('sell')}{r}=\"\",{cl('cost')}{r}=\"\"),\"\","
-                              f"{cl('sell')}{r}-{cl('cost')}{r})")
+            elif key == "gross":
+                cell.value = (
+                    f'=IF(COUNTA(A{r}:{cl("tgive")}{r})=0,"",'
+                    f'N({cl("lux")}{r})*{LUX_PRICE}'
+                    f'+IF({cl("gw")}{r}="是",{GW_PRICE},0)'
+                    f'+N({cl("front")}{r})+{cl("tspread")}{r})')
                 cell.number_format = MONEY
                 cell.fill = CALC_FILL
-            elif key == "margin":
-                # profit / sell  (利润占卖价比例)
-                cell.value = (f"=IF(OR({cl('sell')}{r}=\"\",{cl('sell')}{r}=0),\"\","
-                              f"{cl('profit')}{r}/{cl('sell')}{r})")
-                cell.number_format = PCT
+            elif key == "comm":
+                cell.value = (f'=IF({cl("gross")}{r}="","",'
+                              f'{cl("gross")}{r}*{RATE})')
+                cell.number_format = MONEY
                 cell.fill = CALC_FILL
-            elif key == "roi":
-                # profit / cost  (利润占投入比例)
-                cell.value = (f"=IF(OR({cl('cost')}{r}=\"\",{cl('cost')}{r}=0),\"\","
-                              f"{cl('profit')}{r}/{cl('cost')}{r})")
-                cell.number_format = PCT
-                cell.fill = CALC_FILL
-            elif key == "status":
-                cell.value = (f"=IF({cl('cost')}{r}=\"\",\"\","
-                              f"IF({cl('sell')}{r}=\"\",\"在售\",\"已售\"))")
-                cell.fill = CALC_FILL
+                cell.font = Font(bold=True)
             else:
-                # input cells
                 cell.fill = INPUT_FILL
-                if key in ("buy", "recon", "ship", "fees", "misc", "sell"):
+                if key in ("front", "tval", "tgive"):
                     cell.number_format = MONEY
 
-    # ---- summary block ----------------------------------------------------
-    s = last_data + 3
+    # dropdown 是/否 for Greenway
+    dv = DataValidation(type="list", formula1='"是,否"', allow_blank=True)
+    ws.add_data_validation(dv)
+    dv.add(f'{cl("gw")}{first}:{cl("gw")}{last}')
+
+    # ---- summary --------------------------------------------------------
+    s = last + 2
     ws.cell(row=s, column=1, value="📊 汇总").font = Font(bold=True, size=14,
                                                          color="1F4E78")
 
-    def summary(label, formula, fmt=MONEY, offset=1):
-        row = s + offset
+    def summ(label, formula, fmt=MONEY, off=1):
+        row = s + off
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
         lc = ws.cell(row=row, column=1, value=label)
         lc.font = LABEL_FONT
+        lc.alignment = Alignment(horizontal="right")
         vc = ws.cell(row=row, column=3, value=formula)
         vc.number_format = fmt
         vc.font = Font(bold=True)
         vc.fill = CALC_FILL
         vc.border = BORDER
-        return row
 
-    prof = f"{cl('profit')}{first_data}:{cl('profit')}{last_data}"
-    cost = f"{cl('cost')}{first_data}:{cl('cost')}{last_data}"
-    stat = f"{cl('status')}{first_data}:{cl('status')}{last_data}"
-    sell = f"{cl('sell')}{first_data}:{cl('sell')}{last_data}"
+    cust = f'{cl("cust")}{first}:{cl("cust")}{last}'
+    lux = f'{cl("lux")}{first}:{cl("lux")}{last}'
+    gw = f'{cl("gw")}{first}:{cl("gw")}{last}'
+    gross = f'{cl("gross")}{first}:{cl("gross")}{last}'
+    comm = f'{cl("comm")}{first}:{cl("comm")}{last}'
 
-    summary("总台数（已录入）", f'=COUNTIF({stat},"<>")', fmt='0', offset=1)
-    summary("已售台数", f'=COUNTIF({stat},"已售")', fmt='0', offset=2)
-    summary("在售台数", f'=COUNTIF({stat},"在售")', fmt='0', offset=3)
-    summary("已售总利润", f'=SUM({prof})', offset=4)
-    summary("已售平均每台利润",
-            f'=IF(COUNTIF({stat},"已售")=0,0,SUM({prof})/COUNTIF({stat},"已售"))',
-            offset=5)
-    # ROI overall = total profit / total cost of SOLD cars
-    sold_cost = (f'=SUMIFS({cost},{stat},"已售")')
-    summary("已售总成本", sold_cost, offset=6)
-    summary("整体回报率 ROI",
-            f'=IF(SUMIFS({cost},{stat},"已售")=0,0,'
-            f'SUM({prof})/SUMIFS({cost},{stat},"已售"))',
-            fmt=PCT, offset=7)
-    summary("在售占用资金（成本）", f'=SUMIFS({cost},{stat},"在售")', offset=8)
+    summ("成交单数", f'=COUNTA({cust})', fmt='0', off=1)
+    summ("LUX Care 总份数", f'=SUM({lux})', fmt='0', off=2)
+    summ("Greenway 卖出数", f'=COUNTIF({gw},"是")', fmt='0', off=3)
+    summ("店总利润", f'=SUM({gross})', off=4)
+    summ("我的总提成", f'=SUM({comm})', off=5)
+    summ("平均每单提成",
+         f'=IF(COUNTA({cust})=0,0,SUM({comm})/COUNTA({cust}))', off=6)
 
-    # Freeze header so it stays visible while scrolling
-    ws.freeze_panes = f"A{first_data}"
+    ws.freeze_panes = f"A{first}"
 
-    # An example row so it's obvious how to use
-    ex = first_data
+    # example row (matches user's example -> commission 1761.25)
+    ex = first
     ws.cell(row=ex, column=COL["id"], value="示例")
-    ws.cell(row=ex, column=COL["desc"], value="2018 起亚 K5")
-    ws.cell(row=ex, column=COL["buy"], value=8000)
-    ws.cell(row=ex, column=COL["recon"], value=1200)
-    ws.cell(row=ex, column=COL["ship"], value=300)
-    ws.cell(row=ex, column=COL["fees"], value=400)
-    ws.cell(row=ex, column=COL["misc"], value=200)
-    ws.cell(row=ex, column=COL["sell"], value=12500)
+    ws.cell(row=ex, column=COL["cust"], value="张三 / K5")
+    ws.cell(row=ex, column=COL["lux"], value=1)
+    ws.cell(row=ex, column=COL["gw"], value="是")
+    ws.cell(row=ex, column=COL["front"], value=2000)
+    ws.cell(row=ex, column=COL["tval"], value=18000)
+    ws.cell(row=ex, column=COL["tgive"], value=16000)
 
     wb.save(OUT)
     print(f"已生成 {OUT}")
