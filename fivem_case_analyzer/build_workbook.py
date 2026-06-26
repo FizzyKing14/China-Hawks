@@ -253,6 +253,15 @@ def fill(hexcolor):
 def build():
     wb = Workbook()
 
+    # 文件属性 / 署名 —— 全部原创署名「袁尘」
+    wb.properties.creator = "袁尘"
+    wb.properties.lastModifiedBy = "袁尘"
+    wb.properties.title = "圣安地列斯州 · 案件罪名分析器"
+    wb.properties.subject = "FiveM RP 案件罪名分析"
+    wb.properties.description = "原创制作：袁尘"
+    wb.properties.keywords = "袁尘 原创"
+    wb.properties.category = "袁尘 原创"
+
     # 顺序: 使用说明 / 算罪台 / 罪名表 / 关键词表
     ws_help = wb.active
     ws_help.title = "使用说明"
@@ -455,6 +464,13 @@ def build():
     tip.alignment = WRAP_TOP
     m.row_dimensions[16].height = 36
 
+    # 署名
+    m.merge_cells("A18:F18")
+    sig = m["A18"]
+    sig.value = "原创制作：袁尘"
+    sig.font = Font(size=10, bold=True, color="1F3864")
+    sig.alignment = Alignment(horizontal="right", vertical="center")
+
     # 列宽
     for col, w in {"A": 14, "B": 40, "C": 8, "D": 13, "E": 13, "F": 15}.items():
         m.column_dimensions[col].width = w
@@ -466,7 +482,7 @@ def build():
     h = ws_help
     h.merge_cells("A1:B1")
     hc = h["A1"]
-    hc.value = "圣安地列斯州 · 案件罪名分析器 — 使用说明"
+    hc.value = "圣安地列斯州 · 案件罪名分析器 — 使用说明（原创制作：袁尘）"
     hc.font = Font(color="FFFFFF", bold=True, size=15)
     hc.fill = fill(C_TITLE)
     hc.alignment = CENTER
@@ -495,6 +511,8 @@ def build():
         ("", "改完即时生效，无需联网，手机 WPS / Excel / 电脑都能用。"),
         ("⑤ 免责声明", ""),
         ("", "本工具仅为辅助参考，最终定罪与量刑以服务器法官 / 司法部裁量为准。"),
+        ("", ""),
+        ("原创制作", "袁尘"),
     ]
     r = 3
     for left, right in lines:
