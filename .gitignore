@@ -12,3 +12,5 @@ venv/
 # Secrets / env
 .env
 *.local
+
+preview_*.png
