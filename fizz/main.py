@@ -111,7 +111,11 @@ async def chat(req: ChatRequest):
     def _stream():
         try:
             for chunk in _ollama.chat(model=req.model, messages=msgs, stream=True):
-                token = chunk.get("message", {}).get("content", "")
+                # 兼容新旧两种 ollama 库格式（dict vs 对象）
+                try:
+                    token = chunk.message.content or ""
+                except AttributeError:
+                    token = (chunk.get("message") or {}).get("content") or ""
                 if token:
                     yield f"data: {json.dumps({'content': token})}\n\n"
         except Exception as exc:
