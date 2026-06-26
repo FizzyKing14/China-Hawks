@@ -226,27 +226,61 @@ CHARGES = [
 MAX_TOTAL_MONTHS = 60
 
 # =====================================================================
-#  样式
+#  样式  —  执法主题: 深海军蓝 / 金 / 警务红
 # =====================================================================
-C_TITLE   = "1F3864"   # 深蓝
-C_HEADER  = "2E5496"   # 蓝
-C_INPUT   = "FFF2CC"   # 浅黄(输入框)
-C_RESULT  = "E2EFDA"   # 浅绿(结果)
-C_FELONY  = "F8CBAD"   # 重罪 浅红
-C_MISD    = "FCE4D6"   # 轻罪 浅橙
-C_INFRACT = "FFF2CC"   # 违法 浅黄
-C_HIT     = "C6E0B4"   # 命中 绿
+C_NAVY    = "12243B"   # 主色 深海军蓝
+C_BLUE    = "1F3A5F"   # 次蓝
+C_STEEL   = "2C4A7C"   # 钢蓝(当事人甲)
+C_TEAL    = "1E6B5C"   # 墨绿(当事人乙)
+C_PLUM    = "5E4B8B"   # 紫(当事人丙)
+C_GOLD    = "C9A227"   # 金色 强调
+C_GOLDL   = "F3E6BE"   # 浅金
+C_PAGE    = "F4F6FA"   # 页面浅灰底
+C_CARD    = "FFFFFF"   # 卡片白
+C_INK     = "1B2A41"   # 文字深蓝
+C_MUTE    = "6B7280"   # 次要灰字
+
+# 兼容旧引用
+C_TITLE   = C_NAVY
+C_HEADER  = C_BLUE
+C_INPUT   = "FFFDF5"   # 输入框 暖白
+C_RESULT  = "EEF4FA"   # 结果 浅蓝
+C_FELONY  = "F6D4CE"   # 重罪 浅红
+C_MISD    = "FBE3CC"   # 轻罪 浅橙
+C_INFRACT = "FBF1C7"   # 违法 浅黄
+C_HIT     = "CDE8D5"   # 命中 浅绿
 
 WHITE = Font(color="FFFFFF", bold=True)
 BOLD  = Font(bold=True)
-thin  = Side(style="thin", color="BFBFBF")
+thin  = Side(style="thin", color="D5DCE6")
 BORDER = Border(left=thin, right=thin, top=thin, bottom=thin)
+gold_b = Side(style="medium", color=C_GOLD)
 WRAP_TOP  = Alignment(wrap_text=True, vertical="top")
 CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
+LEFTV  = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
 
 def fill(hexcolor):
     return PatternFill("solid", fgColor=hexcolor)
+
+
+def paint(ws, cell_range, fillc=None, font=None, align=None, border=None):
+    """对合并/普通区域统一上色描边, 返回左上角单元格(用于写值)。"""
+    from openpyxl.utils import range_boundaries
+    minc, minr, maxc, maxr = range_boundaries(cell_range)
+    for r in range(minr, maxr + 1):
+        for c in range(minc, maxc + 1):
+            cell = ws.cell(row=r, column=c)
+            if fillc:
+                cell.fill = fillc
+            if border:
+                cell.border = border
+    tl = ws.cell(row=minr, column=minc)
+    if font:
+        tl.font = font
+    if align:
+        tl.alignment = align
+    return tl
 
 
 # =====================================================================
@@ -362,67 +396,90 @@ def build():
     ws_kw.sheet_state = "visible"   # 用户可加关键词
 
     # -----------------------------------------------------------------
-    #  算罪台 (主界面)
+    #  算罪台 (主界面)  —  执法主题 UI
     # -----------------------------------------------------------------
     m = ws_main
+    m.sheet_view.showGridLines = False
     last_law_col = {"甲": ("G", "J"), "乙": ("H", "K"), "丙": ("I", "L")}
+    party_color = {"甲": C_STEEL, "乙": C_TEAL, "丙": C_PLUM}
 
-    # 标题
+    # 整页浅灰底
+    paint(m, "A1:F20", fillc=fill(C_PAGE))
+
+    # ---- 标题横幅 (row1) + 副标题 (row2) ----
     m.merge_cells("A1:F1")
-    t = m["A1"]
-    t.value = "🦅 圣安地列斯州 · 案件罪名分析器"
-    t.font = Font(color="FFFFFF", bold=True, size=16)
-    t.fill = fill(C_TITLE)
-    t.alignment = CENTER
-    m.row_dimensions[1].height = 30
+    t = paint(m, "A1:F1", fillc=fill(C_NAVY),
+              font=Font(color="FFFFFF", bold=True, size=18),
+              align=Alignment(horizontal="center", vertical="center"))
+    t.value = "⚖   圣 安 地 列 斯 州 · 案 件 罪 名 分 析 器   🦅"
+    # 金色下划线
+    for c in range(1, 7):
+        m.cell(row=1, column=c).border = Border(bottom=gold_b)
+    m.row_dimensions[1].height = 40
 
     m.merge_cells("A2:F2")
-    s = m["A2"]
-    s.value = ("把每位当事人「做了什么」分别填到下面黄色框里（尽量用法典里的词，如：抢劫、袭警、拒捕、开枪、逃跑…）"
-               "，下方自动算出罪名与刑期。详细规则见「使用说明」页。")
-    s.font = Font(size=10, italic=True)
-    s.alignment = WRAP_TOP
-    m.row_dimensions[2].height = 42
+    s = paint(m, "A2:F2", fillc=fill(C_NAVY),
+              font=Font(color=C_GOLDL, size=10, italic=True),
+              align=Alignment(horizontal="center", vertical="center"))
+    s.value = "STATE OF SAN ANDREAS · PENAL CODE CASE ANALYZER　|　依据《圣安地列斯州刑法典》自动算罪"
+    m.row_dimensions[2].height = 20
 
-    # 输入区  甲/乙/丙
+    # ---- 区块① 案情输入 (row3 标签) ----
+    m.merge_cells("A3:F3")
+    sec1 = paint(m, "A3:F3", fillc=fill(C_GOLDL),
+                 font=Font(bold=True, size=11, color=C_NAVY), align=LEFTV)
+    sec1.value = "　① 案情输入　—　把每位当事人「做了什么」分别填进右侧白框（只算一人就只填甲）"
+    m.cell(row=3, column=1).border = Border(left=Side(style="thick", color=C_GOLD))
+    m.row_dimensions[3].height = 24
+
+    # ---- 输入卡片 甲/乙/丙 (row4/5/6) ----
     parties = [("甲", 4), ("乙", 5), ("丙", 6)]
     for pname, row in parties:
-        lab = m.cell(row=row, column=1, value=f"👤 当事人{pname}\n行为/案情")
-        lab.font = BOLD
-        lab.alignment = CENTER
-        lab.fill = fill(C_HEADER)
-        lab.font = WHITE
+        # 左侧色块标签
+        m.merge_cells(start_row=row, start_column=1, end_row=row, end_column=1)
+        lab = paint(m, f"A{row}:A{row}", fillc=fill(party_color[pname]),
+                    font=Font(color="FFFFFF", bold=True, size=11), align=CENTER)
+        lab.value = f"👤\n当事人{pname}"
+        # 右侧输入框
         m.merge_cells(start_row=row, start_column=2, end_row=row, end_column=6)
-        inp = m.cell(row=row, column=2, value="")
-        inp.fill = fill(C_INPUT)
-        inp.alignment = WRAP_TOP
-        inp.border = BORDER
-        m.row_dimensions[row].height = 46
-    # 给甲一个示例(便于一打开就看到效果)
+        inp = paint(m, f"B{row}:F{row}", fillc=fill(C_INPUT),
+                    font=Font(size=10, color=C_INK),
+                    align=WRAP_TOP, border=BORDER)
+        m.row_dimensions[row].height = 50
+    # 示例(打开即见效果)
     m["B4"] = "嫌疑人持枪抢劫便利店，被警察拦截后拒捕并开枪，随后驾车逃跑撞坏路边车辆。"
 
-    # 结果区标题
+    # ---- 区块② 分析结果 (row8 标签) ----
+    m.row_dimensions[7].height = 6
     m.merge_cells("A8:F8")
-    rh = m["A8"]
-    rh.value = "📋 分析结果（自动计算）"
-    rh.font = WHITE
-    rh.fill = fill(C_HEADER)
-    rh.alignment = Alignment(horizontal="left", vertical="center")
-    m.row_dimensions[8].height = 22
+    sec2 = paint(m, "A8:F8", fillc=fill(C_GOLDL),
+                 font=Font(bold=True, size=11, color=C_NAVY), align=LEFTV)
+    sec2.value = "　② 分析结果　—　自动匹配罪名 / 合计刑期 / 罚款 / 保释金（绿色＝命中）"
+    m.cell(row=8, column=1).border = Border(left=Side(style="thick", color=C_GOLD))
+    m.row_dimensions[8].height = 24
 
+    # 结果表头 (row9)
     res_headers = ["当事人", "命中罪名", "罪名数", "合计刑期(月)", "合计罚款($)", "建议保释金($)"]
-    for ci, h in enumerate(res_headers, start=1):
-        c = m.cell(row=9, column=ci, value=h)
+    for ci, htxt in enumerate(res_headers, start=1):
+        c = m.cell(row=9, column=ci, value=htxt)
         c.font = WHITE
-        c.fill = fill(C_HEADER)
+        c.fill = fill(C_BLUE)
         c.alignment = CENTER
         c.border = BORDER
+    m.row_dimensions[9].height = 22
 
+    # 结果数据 (row10-12)
     for idx, (pname, _row) in enumerate(parties):
         r = 10 + idx
         hit_col, cum_col = last_law_col[pname]
-        m.cell(row=r, column=1, value=f"当事人{pname}").font = BOLD
-        # 命中罪名(取累积列最后一行)
+        zebra = "FFFFFF" if idx % 2 == 0 else "EEF4FA"
+        # 当事人色块
+        pc = m.cell(row=r, column=1, value=f"当事人{pname}")
+        pc.font = Font(color="FFFFFF", bold=True)
+        pc.fill = fill(party_color[pname])
+        pc.alignment = CENTER
+        pc.border = BORDER
+        # 命中罪名
         m.cell(row=r, column=2,
             value=f'=IF(\'罪名表\'!${cum_col}${law_last}="","（无 / 请补充案情）",\'罪名表\'!${cum_col}${law_last})')
         # 罪名数
@@ -434,47 +491,56 @@ def build():
         # 合计罚款
         m.cell(row=r, column=5,
             value=f"=SUMIF('罪名表'!${hit_col}${law_first}:${hit_col}${law_last},1,'罪名表'!$E${law_first}:$E${law_last})")
-        # 建议保释金 = 刑期(月) × 罚款 ÷ 6
+        # 建议保释金
         m.cell(row=r, column=6, value=f"=ROUND(D{r}*E{r}/6,0)")
-        for ci in range(1, 7):
+        for ci in range(2, 7):
             cc = m.cell(row=r, column=ci)
             cc.border = BORDER
-            cc.fill = fill(C_RESULT)
-            cc.alignment = WRAP_TOP if ci == 2 else CENTER
+            cc.fill = fill(zebra)
+            if ci == 2:
+                cc.alignment = WRAP_TOP
+                cc.font = Font(size=10, color=C_INK)
+            else:
+                cc.alignment = CENTER
+                cc.font = Font(bold=True, size=11,
+                               color="C0392B" if ci in (4, 6) else C_INK)
+        m.cell(row=r, column=5).number_format = '#,##0'
+        m.cell(row=r, column=6).number_format = '#,##0'
+        m.row_dimensions[r].height = 42
 
-    # 判定结论
+    # ---- 判定结论横幅 (row14) ----
+    m.row_dimensions[13].height = 6
     m.merge_cells("A14:F14")
-    v = m["A14"]
+    v = paint(m, "A14:F14", fillc=fill(C_NAVY),
+              font=Font(bold=True, size=12, color="FFFFFF"), align=CENTER)
+    for c in range(1, 7):
+        m.cell(row=14, column=c).border = Border(top=gold_b, bottom=gold_b)
     v.value = ('=IF(MAX(D10,D11,D12)=0,'
-               '"⚠ 暂未匹配到罪名：请在上方更详细地描述案情，并尽量使用法典中的关键词。",'
+               '"⚠ 暂未匹配到罪名：请更详细地描述案情，并尽量使用法典中的关键词。",'
                '"🔨 主要责任方：当事人"&IF(D10=MAX(D10,D11,D12),"甲",IF(D11=MAX(D10,D11,D12),"乙","丙"))'
-               '&"（合计刑期最重，约 "&MAX(D10,D11,D12)&" 个月 / "&ROUND(MAX(D10,D11,D12)/12,1)&" 年）"'
-               '&"  —  仅供参考，正当防卫/堡垒原则/同类不并罚等请人工复核")')
-    v.font = Font(bold=True, size=12, color="C00000")
-    v.alignment = WRAP_TOP
-    v.fill = fill(C_INPUT)
-    m.row_dimensions[14].height = 40
+               '&"　|　合计刑期约 "&MAX(D10,D11,D12)&" 个月（"&ROUND(MAX(D10,D11,D12)/12,1)&" 年）"'
+               '&"　|　仅供参考，正当防卫 / 堡垒原则 / 同类不并罚等请人工复核")')
+    m.row_dimensions[14].height = 38
 
-    # 小贴士
+    # ---- 小贴士 (row16) ----
+    m.row_dimensions[15].height = 6
     m.merge_cells("A16:F16")
-    tip = m["A16"]
-    tip.value = ("提示：① 只想算一个人时，只填「当事人甲」即可。 ② 刑期已按法典封顶 5 年(60个月)。 "
-                 "③ 保释金 = 刑期(月)×罚款÷6。 ④ 想加/改罪名或关键词，去「罪名表」「关键词表」两页编辑即可。")
-    tip.font = Font(size=9, italic=True, color="595959")
-    tip.alignment = WRAP_TOP
-    m.row_dimensions[16].height = 36
+    tip = paint(m, "A16:F16", fillc=fill(C_PAGE),
+                font=Font(size=9, italic=True, color=C_MUTE), align=WRAP_TOP)
+    tip.value = ("提示  ·  ① 只算一人 → 只填当事人甲　② 刑期已按法典封顶 5 年(60 个月)　"
+                 "③ 保释金 = 刑期(月) × 罚款 ÷ 6　④ 想加/改罪名或关键词 → 去「罪名表」「关键词表」两页")
+    m.row_dimensions[16].height = 34
 
-    # 署名
+    # ---- 署名 (row18) ----
     m.merge_cells("A18:F18")
-    sig = m["A18"]
-    sig.value = "原创制作：袁尘"
-    sig.font = Font(size=10, bold=True, color="1F3864")
-    sig.alignment = Alignment(horizontal="right", vertical="center")
+    sig = paint(m, "A18:F18", fillc=fill(C_PAGE),
+                font=Font(size=10, bold=True, color=C_NAVY),
+                align=Alignment(horizontal="right", vertical="center"))
+    sig.value = "原创制作：袁尘　"
 
     # 列宽
-    for col, w in {"A": 14, "B": 40, "C": 8, "D": 13, "E": 13, "F": 15}.items():
+    for col, w in {"A": 13, "B": 42, "C": 8, "D": 13, "E": 14, "F": 16}.items():
         m.column_dimensions[col].width = w
-    m.sheet_view.showGridLines = False
 
     # -----------------------------------------------------------------
     #  使用说明
