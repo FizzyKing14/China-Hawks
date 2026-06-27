@@ -442,9 +442,13 @@ def build():
     ws_main = wb.create_sheet("算罪台")
     ws_law  = wb.create_sheet("罪名表")
     ws_kw   = wb.create_sheet("关键词库")
+    ws_med  = wb.create_sheet("医疗费用计算器")
+    ws_rule = wb.create_sheet("规章速查")
 
     kw_rows = build_law_and_kw(ws_law, ws_kw)
     build_main(ws_main)
+    build_medical(ws_med)
+    build_rules(ws_rule)
     build_help(ws_help)
 
     out = "圣安地列斯州_案件罪名分析器.xlsx"
@@ -705,6 +709,199 @@ def build_help(h):
         r += 1
     h.column_dimensions["A"].width = 22
     h.column_dimensions["B"].width = 96
+
+
+# =====================================================================
+#  医疗费用计算器  +  价格表  (来源: 小首尔国际医疗中心 医护手册/注意事项)
+# =====================================================================
+MED_ITEMS = [
+    ("物品", "民用医疗包", 2000, "对外出售"),
+    ("物品", "感冒药", 3000, "病人感冒使用"),
+    ("物品", "退烧药", 3000, "感冒药"),
+    ("物品", "肺炎特效药", 5000, "病人肺炎使用"),
+    ("物品", "口罩", 600, "预防病毒"),
+    ("物品", "拐杖", 1000, "单腿骨折 / 断裂式骨折"),
+    ("物品", "轮椅", 2000, "双腿骨折 / 断裂式骨折"),
+    ("物品", "整容", 50000, "新市民第一次不收费"),
+    ("手术", "轻伤手术", 3000, "挫伤 / 轻微刀伤 / 击打伤"),
+    ("手术", "中伤手术", 4000, "脑震荡 / 昏厥 / 中度刀伤"),
+    ("手术", "重伤手术", 5000, "骨折 / 枪伤 / 大出血"),
+    ("手术", "死亡火化", 0, "现场验伤"),
+    ("住院", "普通病房", 1000, "脑震荡 / 轻微刀伤"),
+    ("住院", "重症病房", 2000, "枪伤 / 骨折 / 大出血"),
+    ("住院", "ICU 病房", 3000, "重度枪伤 / 刀伤 / 头部重创"),
+    ("救护车出车", "市内出车", 300, "大探 / 萨博班 / 道奇战马"),
+    ("救护车出车", "中部出车", 500, ""),
+    ("救护车出车", "北部出车", 700, "可开越野车"),
+    ("直升机出车", "市内直升机", 600, "仅港口区域可用"),
+    ("直升机出车", "中部直升机", 800, ""),
+    ("直升机出车", "北部直升机", 1000, ""),
+]
+MED_NOTES = [
+    "⚠ 开车救援单人最高收 $6,700；直升机救援单人最高 $7,000（出售其他药品另计）。",
+    "⚠ 手术费如由医护车辆带回，需额外加收出车费（PD 免出车费）。",
+    "⚠ 不得以任何理由拒绝住院；乱收费 / 不开账单 / 收私钱 → 核实降级，多次开除。",
+]
+
+
+def build_medical(w):
+    w.sheet_view.showGridLines = False
+    for col, ww in {"A": 18, "B": 11, "C": 8, "D": 12, "E": 36}.items():
+        w.column_dimensions[col].width = ww
+    paint(w, "A1:E40", fillc=fill(C_PAGE))
+    w.merge_cells("A1:E1")
+    paint(w, "A1:E1", fillc=fill(C_NAVY),
+          font=Font(color="FFFFFF", bold=True, size=16), align=CENTER).value = "🚑 医疗费用计算器"
+    for c in range(1, 6):
+        w.cell(row=1, column=c).border = Border(bottom=gold_b)
+    w.row_dimensions[1].height = 34
+    w.merge_cells("A2:E2")
+    paint(w, "A2:E2", fillc=fill(C_NAVY),
+          font=Font(color=C_GOLDL, size=10, italic=True), align=CENTER).value = \
+        "在「数量」列填数字 → 自动算总价（来源：小首尔国际医疗中心 价格表）"
+    w.row_dimensions[2].height = 18
+
+    # 合计条
+    data_first = 5
+    data_last = data_first + len(MED_ITEMS) + 4  # 含分隔行, 回填后修正
+    # 表头
+    for ci, h in enumerate(["项目", "单价($)", "数量", "小计($)", "说明"], start=1):
+        c = w.cell(row=4, column=ci, value=h)
+        c.font = Font(color="FFFFFF", bold=True)
+        c.fill = fill(C_BLUE)
+        c.alignment = CENTER
+        c.border = BORDER
+    w.row_dimensions[4].height = 20
+
+    r = data_first
+    cur = None
+    sub_cells = []
+    for cat, name, price, note in MED_ITEMS:
+        if cat != cur:
+            cur = cat
+            w.merge_cells(start_row=r, start_column=1, end_row=r, end_column=5)
+            paint(w, f"A{r}:E{r}", fillc=fill(C_NAVY),
+                  font=Font(color="FFFFFF", bold=True, size=10), align=LEFTV).value = "▍ " + cat
+            w.row_dimensions[r].height = 18
+            r += 1
+        w.cell(row=r, column=1, value=name).alignment = LEFTV
+        pc = w.cell(row=r, column=2, value=price)
+        pc.alignment = CENTER
+        pc.number_format = '#,##0'
+        qc = w.cell(row=r, column=3, value=0)
+        qc.alignment = CENTER
+        qc.fill = fill(C_INPUT)
+        qc.font = Font(bold=True, color=C_STEEL)
+        sc = w.cell(row=r, column=4, value=f"=B{r}*C{r}")
+        sc.alignment = CENTER
+        sc.number_format = '#,##0'
+        sub_cells.append(r)
+        w.cell(row=r, column=5, value=note).alignment = WRAP_TOP
+        for ci in range(1, 6):
+            w.cell(row=r, column=ci).border = BORDER
+        w.row_dimensions[r].height = 22
+        r += 1
+    last = r - 1
+
+    # 合计条(row3) 引用所有小计
+    w.merge_cells("A3:B3")
+    paint(w, "A3:B3", fillc=fill(C_GOLD),
+          font=Font(color="FFFFFF", bold=True, size=13), align=CENTER).value = "💴 本次合计 ($)"
+    tot = w.cell(row=3, column=4,
+                 value=f"=SUM(D{data_first}:D{last})")
+    tot.font = Font(bold=True, size=14, color="C0392B")
+    tot.alignment = CENTER
+    tot.number_format = '#,##0'
+    w.cell(row=3, column=3).fill = fill(C_GOLDL)
+    w.merge_cells("E3:E3")
+    paint(w, "C3:C3", fillc=fill(C_GOLDL))
+    w.cell(row=3, column=5, value="↙ 在下面各项填数量").font = Font(size=9, italic=True, color=C_MUTE)
+    for c in range(1, 6):
+        w.cell(row=3, column=c).border = Border(top=gold_b, bottom=gold_b)
+    w.row_dimensions[3].height = 26
+
+    # 注意事项
+    rr = last + 2
+    for note in MED_NOTES:
+        w.merge_cells(start_row=rr, start_column=1, end_row=rr, end_column=5)
+        paint(w, f"A{rr}:E{rr}", fillc=fill("FFF8E1"),
+              font=Font(size=9, color="8A6D00"), align=LEFTV).value = "　" + note
+        w.row_dimensions[rr].height = 18
+        rr += 1
+    w.merge_cells(start_row=rr + 1, start_column=1, end_row=rr + 1, end_column=5)
+    paint(w, f"A{rr+1}:E{rr+1}", fillc=fill(C_PAGE),
+          font=Font(size=10, bold=True, color=C_NAVY), align=RIGHTV).value = "原创制作：袁尘　"
+    w.freeze_panes = "A5"
+
+
+# =====================================================================
+#  规章速查  (警务 + 医护规章/处分要点)
+# =====================================================================
+RULES = [
+    ("H", "🛡 警务 · 武力等级条例", ""),
+    ("R", "一级 · 非致命", "口头警告（表明身份）、徒手制服（奔跑 G 神经扑倒）。对象对周围个人/财产产生威胁时即可徒手制服。"),
+    ("R", "二级 · 低致命", "嫌犯持管制刀具、对警员/市民造成生命威胁时：使用警棍、电击枪、豆袋枪（请勿射击头部）。"),
+    ("R", "三级 · 致命", "嫌犯持热武器展示/开火、重大绑架案/抢劫案、帮派案件中可用致命武器：格洛克22、UPR步枪(AR-15)、TSG霰弹枪(M870)。错误使用致命武器将受内务组调查。"),
+    ("H", "⚖ 警务 · 内务处分阶梯（对警员，由轻到重）", ""),
+    ("R", "处分等级", "① 无处分/口头警告 → ② 正式处分 → ③ 停职1天 → ④ 停职2天 → ⑤ 停职3天 → ⑥ 降级/降职 → ⑦ 终止雇佣（开除警籍）"),
+    ("R", "调查期间", "受内务调查期间属行政休假：无执法权、无警械使用权、无警车使用权。"),
+    ("R", "警械流出", "贩卖/赠送警械违反联邦法 → 可能受 FBI 调查，甚至永久驱逐出境。"),
+    ("H", "📻 警务 · 常用 Code 代码", ""),
+    ("R", "CODE", "2 常规(非紧急,无警灯笛)｜2-H 优先(紧急,需警灯)｜3 紧急(警灯+警笛)｜4 案件结束/无需增援｜6 离车调查｜6-A 离车调查需支援｜7 用餐休息｜99 紧急情况"),
+    ("R", "10-Code", "10-41 开始执勤｜10-42 结束执勤(出国)｜10-41 10-8 正常状态(请求调度)"),
+    ("H", "📢 警务 · 米兰达宣言（逮捕时宣读）", ""),
+    ("R", "宣读词", "“您现在因涉嫌 XX 罪名而被我们逮捕。你有权保持沉默，但你所说的每一句话都将成为呈堂证供。你有权聘请律师，如果没有条件，我们会为你指派一名公派律师。以上权利你是否清楚？”"),
+    ("R", "程序", "若无正面回应需重读，连续共计 3 次后可停止并继续程序。须全程开启执法记录仪；若未完整宣读或未记录，嫌犯可要求无罪释放。"),
+    ("R", "莱伯格条例(高层)", "“你没有权力保持沉默，你所说的一切都会成为呈堂证供，拒绝完整回答我的所有问题会导致你立即被解雇，并转交内务调查组起诉，你清楚了吗？”"),
+    ("H", "👮 警务 · 警衔（高 → 低）", ""),
+    ("R", "警衔顺序", "局长(总警监) → 助理局长/二级副警司 → 副局长(一级副总警监) → 警长(Commander) → 警监(Captain) → 警督(Lieutenant) → 二级警司 → 一级警司 → 三/二/一级警探 → 高级警员 → 三级警员 → 一/二级警员"),
+    ("H", "🚑 医护 · 上班守则要点", ""),
+    ("R", "守则", "上班穿工服、开救护车（禁开私家车）、KOOK 打卡与药品报备；救援须开警灯警笛；不介入警匪/玩家/帮派纠纷；遇交战或有人开枪立即撤离保命；到点及返院须锁车；不得拒绝住院。"),
+    ("H", "⚖ 医护 · 内务处分", ""),
+    ("R", "私搜患者", "私自搜查/拿取患者背包、物资、枪械：第一次内务警告，第二次直接开除。"),
+    ("R", "乱收费", "乱收费 / 不开账单 / 收私钱：核查属实降级，多次现象 → 开除。"),
+    ("R", "违法乱纪", "采集毒品/抢劫/殴打玩家等有损形象行为（无论上下班）：视情节承担，严重者直接开除。"),
+]
+
+
+def build_rules(w):
+    w.sheet_view.showGridLines = False
+    w.column_dimensions["A"].width = 20
+    w.column_dimensions["B"].width = 96
+    w.merge_cells("A1:B1")
+    paint(w, "A1:B1", fillc=fill(C_NAVY),
+          font=Font(color="FFFFFF", bold=True, size=16), align=CENTER).value = "📖 规章速查（警务 / 医护）"
+    for c in range(1, 3):
+        w.cell(row=1, column=c).border = Border(bottom=gold_b)
+    w.row_dimensions[1].height = 32
+    w.merge_cells("A2:B2")
+    paint(w, "A2:B2", fillc=fill(C_NAVY),
+          font=Font(color=C_GOLDL, size=10, italic=True), align=CENTER).value = \
+        "以下为规章/手册里的关键规则与「内务处分」要点（对警员/医护，非市民算罪）。可按 Ctrl+F 搜索"
+    w.row_dimensions[2].height = 18
+    r = 3
+    for typ, a, b in RULES:
+        if typ == "H":
+            w.merge_cells(start_row=r, start_column=1, end_row=r, end_column=2)
+            paint(w, f"A{r}:B{r}", fillc=fill(C_GOLDL),
+                  font=Font(bold=True, size=11, color=C_NAVY), align=LEFTV).value = "　" + a
+            w.cell(row=r, column=1).border = Border(left=Side(style="thick", color=C_GOLD))
+            w.row_dimensions[r].height = 24
+        else:
+            la = w.cell(row=r, column=1, value=a)
+            la.font = Font(bold=True, color=C_BLUE)
+            la.alignment = WRAP_TOP
+            la.fill = fill("F2F5FA")
+            la.border = BORDER
+            cb = w.cell(row=r, column=2, value=b)
+            cb.alignment = WRAP_TOP
+            cb.border = BORDER
+            w.row_dimensions[r].height = 30 if len(b) < 50 else 46
+        r += 1
+    w.merge_cells(start_row=r + 1, start_column=1, end_row=r + 1, end_column=2)
+    paint(w, f"A{r+1}:B{r+1}", fillc=fill(C_PAGE),
+          font=Font(size=10, bold=True, color=C_NAVY), align=RIGHTV).value = "原创整理：袁尘　"
+    w.freeze_panes = "A3"
 
 
 if __name__ == "__main__":
