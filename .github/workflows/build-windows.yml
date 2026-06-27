@@ -21,7 +21,7 @@ jobs:
 
       - name: 打包 EXE
         working-directory: fivem_case_analyzer
-        run: pyinstaller --onefile --noconsole --name "案件罪名分析器" app.py
+        run: pyinstaller --onefile --noconsole --icon "icon.ico" --add-data "icon.ico;." --name "案件罪名分析器" app.py
 
       - name: 上传 EXE
         uses: actions/upload-artifact@v4

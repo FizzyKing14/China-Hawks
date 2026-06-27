@@ -8,11 +8,19 @@
 直接运行:  python app.py
 打包 exe :  见 build_exe.bat 或 .github/workflows/build-windows.yml
 """
+import os
+import sys
 import tkinter as tk
 from tkinter import ttk
 
 # 复用 build_workbook 里的全部法条/关键词/价格/规章数据（已合并去重）
 import build_workbook as D
+
+
+def resource_path(rel):
+    """兼容 PyInstaller 打包后的资源路径。"""
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, rel)
 
 NAVY = "#12243B"; BLUE = "#1F3A5F"; GOLD = "#C9A227"; GOLDL = "#F3E6BE"
 PAGE = "#F4F6FA"; INK = "#1B2A41"; MUTE = "#6B7280"; RED = "#C0392B"
@@ -45,6 +53,10 @@ class App(tk.Tk):
         self.title("圣安地列斯州 · 案件罪名分析器")
         self.geometry("960x700")
         self.configure(bg=PAGE)
+        try:
+            self.iconbitmap(resource_path("icon.ico"))
+        except Exception:
+            pass
         self.option_add("*Font", ("Microsoft YaHei UI", 10))
 
         # 顶部横幅
