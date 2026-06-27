@@ -1,86 +1,104 @@
 # -*- coding: utf-8 -*-
 """
-圣安地列斯州 · 案件罪名分析器  —  Windows 桌面版 (Tkinter)
-=========================================================
-一句话自动算罪：刑事罪名(刑期/罚款/保释金) + 内务违规 + 服务器RP违规 三层识别，
-另含 医疗费用计算器、罪名速查、规章速查。离线运行，原创制作：袁尘。
-
-直接运行:  python app.py
-打包 exe :  见 build_exe.bat 或 .github/workflows/build-windows.yml
+织梦星STAR · 案件罪名分析器  —  Windows 桌面版 (Tkinter, 少女粉 + 特效)
+========================================================================
+一句话自动算罪：刑事罪名(刑期/罚款/保释金) + 内务违规 + 服务器RP违规 三层，
+另含 医疗费用计算器、罪名速查、规章速查。离线运行。原创制作：袁尘。
+特效：横幅星星闪烁/飘心、按钮三态、输入聚焦发光、结果闪现、表格行高亮。
 """
 import os
 import sys
+import math
+import random
 import tkinter as tk
 from tkinter import ttk
 
-# 复用 build_workbook 里的全部法条/关键词/价格/规章数据（已合并去重）
 import build_workbook as D
 
 
 def resource_path(rel):
-    """兼容 PyInstaller 打包后的资源路径。"""
     base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base, rel)
 
-# 🎀 织梦星 STAR · 少女芭比粉主题
-NAVY = "#C2185B"   # 深玫红(横幅/表头/结论 背景, 白字 / 也作分区文字)
-BLUE = "#FF7EB3"   # 亮粉(表头背景, 白字)
-GOLD = "#FF7EB3"   # 亮粉(横幅描边/医疗合计条)
-GOLDL = "#FFD1DC"  # 芭比粉(分区条背景)
-PAGE = "#FFF0F5"   # 浅粉(页面底)
-INK = "#7A3B5D"    # 深莓(正文)
-MUTE = "#C99BB3"   # 淡莓灰(次要)
-RED = "#D81B60"    # 玫粉红(罪名/数字 强调)
-STEEL = "#FF7EB3"  # 当事人甲 粉
-TEAL = "#5FB0D9"   # 当事人乙 天蓝
-PLUM = "#B07CD6"   # 当事人丙 / 内务违规 紫
-SRV = "#E8800C"    # 服务器违规 橙
+
+# 🎀 少女芭比粉主题
+NAVY = "#C2185B"; HOT = "#FF7EB3"; HOT2 = "#FF9ECE"; PRESS = "#E0518A"
+PINK = "#FFD1DC"; BG = "#FFF0F5"; INK = "#7A3B5D"; MUTE = "#C99BB3"
+RED = "#D81B60"; GOLD = "#FFC83D"; WHITE = "#FFFFFF"
+STEEL = "#FF7EB3"; TEAL = "#5FB0D9"; PLUM = "#B07CD6"; SRV = "#E8800C"
 CAP = D.MAX_TOTAL_MONTHS
 NONCRIM = ("内务违规", "服务器违规")
 PARTY_COLOR = {"甲": STEEL, "乙": TEAL, "丙": PLUM}
 
 
+def _rgb(h): return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
+def _hex(t): return "#%02X%02X%02X" % t
+def lerp(a, b, t):
+    ca, cb = _rgb(a), _rgb(b)
+    return _hex(tuple(int(ca[i] + (cb[i] - ca[i]) * t) for i in range(3)))
+
+
 def analyze(text):
-    """返回 (刑事[(name,kind,months,fine,note)], 违规[(name,note)], 月, 罚款, 保释金, 罪名数)"""
     text = text or ""
     crim, vio = [], []
     if text.strip():
         for chap, name, kind, months, fine, kws, note in D.CHARGES:
             if any(k in text for k in kws):
-                if kind in NONCRIM:
-                    vio.append((name, note))
-                else:
-                    crim.append((name, kind, months, fine, note))
+                (vio if kind in NONCRIM else crim).append(
+                    (name, kind, months, fine, note))
     months = min(CAP, sum(c[2] for c in crim))
     years = months / 12
     years = int(years) if years == int(years) else round(years, 2)
     fine = sum(c[3] for c in crim)
-    bail = round(years * fine / 6)   # 保释金按年算：刑期(年) × 罚款 ÷ 6
+    bail = round(years * fine / 6)
     return crim, vio, years, fine, bail, len(crim)
 
 
+# ===================== 圆角按钮(带悬停/按下特效) =====================
+class RoundButton(tk.Canvas):
+    def __init__(self, master, text, command, w=140, h=42,
+                 base=HOT, hover=HOT2, press=PRESS, fg="white", bg=BG):
+        super().__init__(master, width=w, height=h + 6, bg=bg, highlightthickness=0)
+        self.command, self.base, self.hover, self.press = command, base, hover, press
+        self.w, self.h = w, h
+        self.shape = self.create_polygon(self._pts(0), smooth=True, fill=base)
+        self.txt = self.create_text(w / 2, h / 2, text=text, fill=fg,
+                                    font=("Microsoft YaHei UI", 12, "bold"))
+        self.bind("<Enter>", lambda e: self._set(self.hover, 0))
+        self.bind("<Leave>", lambda e: self._set(self.base, 0))
+        self.bind("<ButtonPress-1>", lambda e: self._set(self.press, 3))
+        self.bind("<ButtonRelease-1>", self._release)
+
+    def _pts(self, dy):
+        w, h, r = self.w, self.h, 14
+        return [r, dy, w - r, dy, w, dy, w, dy + r, w, dy + h - r, w, dy + h,
+                w - r, dy + h, r, dy + h, 0, dy + h, 0, dy + h - r, 0, dy + r, 0, dy]
+
+    def _set(self, color, dy):
+        self.coords(self.shape, *self._pts(dy))
+        self.itemconfig(self.shape, fill=color)
+        self.coords(self.txt, self.w / 2, dy + self.h / 2)
+
+    def _release(self, e):
+        self._set(self.hover, 0)
+        if 0 <= e.x <= self.w and 0 <= e.y <= self.h + 6 and self.command:
+            self.command()
+
+
+# ===================== 主程序 =====================
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("✨ 织梦星STAR · 案件罪名分析器 ✨")
-        self.geometry("960x720")
-        self.configure(bg=PAGE)
+        self.geometry("980x740")
+        self.configure(bg=BG)
         try:
             self.iconbitmap(resource_path("icon.ico"))
         except Exception:
             pass
         self.option_add("*Font", ("Microsoft YaHei UI", 10))
         self._init_style()
-
-        # 顶部横幅
-        banner = tk.Frame(self, bg=NAVY)
-        banner.pack(fill="x")
-        tk.Label(banner, text="✨🎀  织梦星 STAR · 案件罪名分析器  🎀✨",
-                 bg=NAVY, fg="white", font=("Microsoft YaHei UI", 18, "bold"),
-                 pady=(10, 0)).pack()
-        tk.Label(banner, text="圣安地列斯州 · STAR Roleplay　💗　一句话自动算罪",
-                 bg=NAVY, fg="#FFE3EE", font=("Microsoft YaHei UI", 9), pady=(0, 8)).pack()
-        tk.Frame(self, bg=GOLD, height=4).pack(fill="x")
+        self._build_banner()
 
         nb = ttk.Notebook(self)
         nb.pack(fill="both", expand=True, padx=8, pady=6)
@@ -89,52 +107,133 @@ class App(tk.Tk):
         self._build_law(nb)
         self._build_rules(nb)
 
-        tk.Label(self, text="✨ 织梦星 STAR Roleplay　|　原创制作：袁尘 ✨", bg=PAGE, fg=RED,
-                 font=("Microsoft YaHei UI", 9, "bold"), anchor="center").pack(fill="x", padx=12, pady=3)
+        tk.Label(self, text="✨ 织梦星 STAR Roleplay　|　原创制作：袁尘 ✨", bg=BG, fg=RED,
+                 font=("Microsoft YaHei UI", 9, "bold")).pack(fill="x", pady=3)
+
+        self._alive = True
+        self._t = 0
+        self._hearts = []
+        self.protocol("WM_DELETE_WINDOW", self._close)
+        self._animate()
+
+    def _close(self):
+        self._alive = False
+        self.destroy()
 
     def _init_style(self):
-        style = ttk.Style(self)
+        st = ttk.Style(self)
         try:
-            style.theme_use("clam")
+            st.theme_use("clam")
         except tk.TclError:
             pass
-        style.configure("TNotebook", background=PAGE, borderwidth=0)
-        style.configure("TNotebook.Tab", background=GOLDL, foreground=NAVY,
-                        padding=(18, 7), font=("Microsoft YaHei UI", 10, "bold"))
-        style.map("TNotebook.Tab",
-                  background=[("selected", NAVY)], foreground=[("selected", "white")])
-        style.configure("Treeview", background="white", fieldbackground="white",
-                        foreground=INK, rowheight=24)
-        style.configure("Treeview.Heading", background=BLUE, foreground="white",
-                        font=("Microsoft YaHei UI", 10, "bold"))
-        style.configure("TScrollbar", background=GOLDL, troughcolor=PAGE)
-        style.configure("TSpinbox", fieldbackground="#FFF5F9", arrowcolor=NAVY)
+        st.configure("TNotebook", background=BG, borderwidth=0)
+        st.configure("TNotebook.Tab", background=PINK, foreground=NAVY,
+                     padding=(18, 7), font=("Microsoft YaHei UI", 10, "bold"))
+        st.map("TNotebook.Tab", background=[("selected", NAVY)],
+               foreground=[("selected", "white")])
+        st.configure("Treeview", background="white", fieldbackground="white",
+                     foreground=INK, rowheight=24)
+        st.configure("Treeview.Heading", background=HOT, foreground="white",
+                     font=("Microsoft YaHei UI", 10, "bold"))
+        st.configure("TScrollbar", background=PINK, troughcolor=BG)
+        st.configure("TSpinbox", fieldbackground="#FFF5F9", arrowcolor=NAVY)
 
-    # ---------------- ① 算罪台 ----------------
+    # ---------- 横幅(Canvas, 含 logo + 闪烁星 + 飘心) ----------
+    def _build_banner(self):
+        c = tk.Canvas(self, height=94, bg=NAVY, highlightthickness=0)
+        c.pack(fill="x")
+        self.banner = c
+        self.update_idletasks()
+        W = self.winfo_width() or 980
+        try:
+            self._logo = tk.PhotoImage(file=resource_path("logo.png"))
+            c.create_image(48, 47, image=self._logo)
+        except Exception:
+            self._logo = None
+        c.create_text(98, 36, anchor="w", text="织梦星 STAR · 案件罪名分析器",
+                      fill="white", font=("Microsoft YaHei UI", 19, "bold"))
+        c.create_text(100, 66, anchor="w",
+                      text="圣安地列斯州 · STAR Roleplay　💗　一句话自动算罪",
+                      fill="#FFE3EE", font=("Microsoft YaHei UI", 10))
+        # 闪烁星星
+        self._stars = []
+        for (sx, sy) in [(W - 60, 32), (W - 110, 64), (W - 150, 28), (W - 200, 60)]:
+            sid = c.create_polygon(self._star_pts(sx, sy, 9), fill=GOLD, outline="white")
+            self._stars.append([sid, sx, sy, random.random() * 6.28])
+        tk.Frame(self, bg=HOT, height=4).pack(fill="x")
+
+    def _star_pts(self, cx, cy, ro):
+        ri = ro * 0.45
+        pts = []
+        for i in range(10):
+            a = math.radians(-90 + i * 36)
+            r = ro if i % 2 == 0 else ri
+            pts += [cx + r * math.cos(a), cy + r * math.sin(a)]
+        return pts
+
+    def _animate(self):
+        if not self._alive:
+            return
+        try:
+            self._t += 1
+            W = self.banner.winfo_width() or 980
+            # 星星twinkle: 重定位到右侧 + 颜色脉动
+            for i, s in enumerate(self._stars):
+                sid, _, sy, ph = s
+                sx = W - [60, 110, 150, 200][i] if i < 4 else 60
+                tw = 0.5 + 0.5 * math.sin(self._t * 0.18 + ph)
+                self.banner.coords(sid, *self._star_pts(sx, sy, 6 + 5 * tw))
+                self.banner.itemconfig(sid, fill=lerp("#FF9EC8", GOLD, tw))
+            # 飘心: 偶发生成 + 上浮淡出
+            if self._t % 9 == 0 and len(self._hearts) < 8:
+                hx = random.randint(120, max(140, W - 240))
+                hid = self.banner.create_text(hx, 86, text="♥", fill=HOT,
+                                              font=("Microsoft YaHei UI", random.choice([12, 14, 16])))
+                self._hearts.append([hid, 86, 0])
+            for h in self._hearts[:]:
+                h[1] -= 2.2
+                h[2] += 1
+                self.banner.coords(h[0], self.banner.coords(h[0])[0], h[1])
+                self.banner.itemconfig(h[0], fill=lerp(HOT, NAVY, min(1, h[2] / 26)))
+                if h[2] > 26:
+                    self.banner.delete(h[0])
+                    self._hearts.remove(h)
+        except tk.TclError:
+            return
+        self.after(60, self._animate)
+
+    # ---------- ① 算罪台 ----------
     def _build_analyzer(self, nb):
-        f = tk.Frame(nb, bg=PAGE); nb.add(f, text="  算罪台  ")
-        tk.Label(f, text="🎀 ① 把每个人做了什么，用一句话写进框里 → 自动算罪（边打边出结果）",
-                 bg=GOLDL, fg=NAVY, font=("Microsoft YaHei UI", 10, "bold"),
+        f = tk.Frame(nb, bg=BG); nb.add(f, text="  算罪台  ")
+        tk.Label(f, text="🎀 ① 把每个人做了什么，用一句话写进框 → 自动算罪（边打边出）",
+                 bg=PINK, fg=NAVY, font=("Microsoft YaHei UI", 10, "bold"),
                  anchor="w", padx=8, pady=4).pack(fill="x", padx=6, pady=(6, 2))
 
         self.inputs = {}
-        inp_wrap = tk.Frame(f, bg=PAGE); inp_wrap.pack(fill="x", padx=6)
+        wrap = tk.Frame(f, bg=BG); wrap.pack(fill="x", padx=6)
         for p in ("甲", "乙", "丙"):
-            row = tk.Frame(inp_wrap, bg=PAGE); row.pack(fill="x", pady=2)
+            row = tk.Frame(wrap, bg=BG); row.pack(fill="x", pady=2)
             tk.Label(row, text=f"当事人{p}", bg=PARTY_COLOR[p], fg="white",
                      width=9, font=("Microsoft YaHei UI", 10, "bold")).pack(side="left", fill="y")
-            t = tk.Text(row, height=2, wrap="word", bg="#FFFDF5", relief="solid", bd=1,
-                        font=("Microsoft YaHei UI", 10))
+            t = tk.Text(row, height=2, wrap="word", bg="#FFFDF5", relief="flat",
+                        font=("Microsoft YaHei UI", 10), highlightthickness=2,
+                        highlightbackground=PINK, highlightcolor="#FF5FA2")
             t.pack(side="left", fill="x", expand=True, padx=(4, 0))
             t.bind("<KeyRelease>", self._on_change)
             self.inputs[p] = t
         self.inputs["甲"].insert("1.0", "嫌疑人持枪抢劫便利店，被警察拦下后拒捕并开枪，然后驾车逃跑还撞坏了路边的车。")
 
-        tk.Label(f, text="💗 ② 分析结果", bg=GOLDL, fg=NAVY, font=("Microsoft YaHei UI", 10, "bold"),
-                 anchor="w", padx=8, pady=4).pack(fill="x", padx=6, pady=(8, 2))
+        # 按钮行(特效按钮)
+        br = tk.Frame(f, bg=BG); br.pack(fill="x", padx=12, pady=(4, 0))
+        RoundButton(br, "🔍 分析", lambda: self._render(flash=True), w=130).pack(side="left")
+        RoundButton(br, "🗑 清空", self._clear, w=110, base=PLUM, hover="#C79AE0",
+                    press="#8E5BB0").pack(side="left", padx=8)
 
-        self.out = tk.Text(f, wrap="word", bg="white", relief="solid", bd=1, state="disabled",
-                           font=("Microsoft YaHei UI", 10), padx=10, pady=8)
+        tk.Label(f, text="💗 ② 分析结果", bg=PINK, fg=NAVY, font=("Microsoft YaHei UI", 10, "bold"),
+                 anchor="w", padx=8, pady=4).pack(fill="x", padx=6, pady=(6, 2))
+        self.out = tk.Text(f, wrap="word", bg="white", relief="flat", state="disabled",
+                           font=("Microsoft YaHei UI", 10), padx=10, pady=8,
+                           highlightthickness=2, highlightbackground=PINK)
         self.out.pack(fill="both", expand=True, padx=6, pady=(0, 6))
         self.out.tag_config("h", foreground="white", background=NAVY,
                             font=("Microsoft YaHei UI", 11, "bold"), spacing1=4, spacing3=4)
@@ -147,19 +246,26 @@ class App(tk.Tk):
                             font=("Microsoft YaHei UI", 11, "bold"), spacing1=6, spacing3=6)
         self._render()
 
+    def _clear(self):
+        for t in self.inputs.values():
+            t.delete("1.0", "end")
+        self._render()
+
     def _on_change(self, _evt=None):
         if getattr(self, "_job", None):
             self.after_cancel(self._job)
         self._job = self.after(200, self._render)
 
-    def _render(self):
+    def _render(self, flash=False):
         self.out.config(state="normal")
         self.out.delete("1.0", "end")
         best = (None, -1)
+        any_in = False
         for p in ("甲", "乙", "丙"):
             txt = self.inputs[p].get("1.0", "end-1c").strip()
             if not txt:
                 continue
+            any_in = True
             crim, vio, years, fine, bail, n = analyze(txt)
             self.out.insert("end", f" 当事人{p} \n", "h")
             if crim:
@@ -176,7 +282,7 @@ class App(tk.Tk):
             if vio:
                 self.out.insert("end", "  违规 / 处分：\n")
                 for name, note in vio:
-                    tag = "disc" if "内务" in note or "FBI" in note or "开除" in note else "vio"
+                    tag = "disc" if ("内务" in note or "FBI" in note or "开除" in note) else "vio"
                     self.out.insert("end", f"     • {name}　{note}\n", tag)
             self.out.insert("end", "\n")
             if years > best[1]:
@@ -184,34 +290,44 @@ class App(tk.Tk):
         if best[0] and best[1] > 0:
             self.out.insert("end",
                             f" 🔨 主要责任方：当事人{best[0]}  |  合计刑期 {best[1]} 年"
-                            f"  |  仅供参考，正当防卫/堡垒原则等请人工复核 \n",
-                            "verdict")
-        elif not any(self.inputs[p].get("1.0", "end-1c").strip() for p in ("甲", "乙", "丙")):
+                            f"  |  仅供参考，正当防卫/堡垒原则等请人工复核 \n", "verdict")
+            if flash:
+                self._flash(0)
+        elif not any_in:
             self.out.insert("end", "请在上方输入案情……", "mute")
         self.out.config(state="disabled")
 
-    # ---------------- ② 医疗费用计算器 ----------------
+    def _flash(self, step):
+        cols = ["#FFC2DD", "#FF9ECE", "#FF7EB3", "#E0518A", NAVY]
+        if step < len(cols) and self._alive:
+            try:
+                self.out.tag_config("verdict", background=cols[step])
+            except tk.TclError:
+                return
+            self.after(80, lambda: self._flash(step + 1))
+
+    # ---------- ② 医疗费用计算器 ----------
     def _build_medical(self, nb):
-        f = tk.Frame(nb, bg=PAGE); nb.add(f, text="  医疗费用计算器  ")
-        top = tk.Frame(f, bg=GOLD); top.pack(fill="x", padx=6, pady=6)
-        tk.Label(top, text="💗 本次合计：", bg=GOLD, fg="white",
+        f = tk.Frame(nb, bg=BG); nb.add(f, text="  医疗费用计算器  ")
+        top = tk.Frame(f, bg=HOT); top.pack(fill="x", padx=6, pady=6)
+        tk.Label(top, text="💗 本次合计：", bg=HOT, fg="white",
                  font=("Microsoft YaHei UI", 12, "bold")).pack(side="left", padx=8, pady=6)
-        self.med_total = tk.Label(top, text="$0", bg=GOLD, fg="white",
+        self.med_total = tk.Label(top, text="$0", bg=HOT, fg="white",
                                   font=("Microsoft YaHei UI", 14, "bold"))
         self.med_total.pack(side="left")
 
-        canvas = tk.Canvas(f, bg=PAGE, highlightthickness=0)
+        canvas = tk.Canvas(f, bg=BG, highlightthickness=0)
         sb = ttk.Scrollbar(f, orient="vertical", command=canvas.yview)
-        inner = tk.Frame(canvas, bg=PAGE)
+        inner = tk.Frame(canvas, bg=BG)
         inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.create_window((0, 0), window=inner, anchor="nw")
         canvas.configure(yscrollcommand=sb.set)
         canvas.pack(side="left", fill="both", expand=True, padx=(6, 0))
         sb.pack(side="right", fill="y")
 
-        hdr = tk.Frame(inner, bg=BLUE); hdr.pack(fill="x")
+        hdr = tk.Frame(inner, bg=HOT); hdr.pack(fill="x")
         for txt, w in (("项目", 22), ("单价", 10), ("数量", 6), ("小计", 12), ("说明", 30)):
-            tk.Label(hdr, text=txt, bg=BLUE, fg="white", width=w,
+            tk.Label(hdr, text=txt, bg=HOT, fg="white", width=w,
                      font=("Microsoft YaHei UI", 10, "bold")).pack(side="left")
 
         self.med_rows = []
@@ -222,21 +338,20 @@ class App(tk.Tk):
                 tk.Label(inner, text="▍ " + cat, bg=NAVY, fg="white", anchor="w",
                          font=("Microsoft YaHei UI", 9, "bold")).pack(fill="x")
             row = tk.Frame(inner, bg="white"); row.pack(fill="x")
-            tk.Label(row, text=name, bg="white", width=22, anchor="w").pack(side="left")
-            tk.Label(row, text=f"${price:,}", bg="white", width=10, anchor="e").pack(side="left")
+            tk.Label(row, text=name, bg="white", width=22, anchor="w", fg=INK).pack(side="left")
+            tk.Label(row, text=f"${price:,}", bg="white", width=10, anchor="e", fg=INK).pack(side="left")
             var = tk.IntVar(value=0)
-            sp = ttk.Spinbox(row, from_=0, to=999, width=5, textvariable=var,
-                             command=self._update_med)
-            sp.pack(side="left", padx=2)
-            sub = tk.Label(row, text="$0", bg="white", width=12, anchor="e")
+            ttk.Spinbox(row, from_=0, to=999, width=5, textvariable=var,
+                        command=self._update_med).pack(side="left", padx=2)
+            sub = tk.Label(row, text="$0", bg="white", width=12, anchor="e", fg=RED)
             sub.pack(side="left")
             tk.Label(row, text=note, bg="white", anchor="w", fg=MUTE).pack(side="left", padx=4)
             var.trace_add("write", lambda *a: self._update_med())
             self.med_rows.append((price, var, sub))
 
         for n in D.MED_NOTES:
-            tk.Label(inner, text="  " + n, bg="#FFF8E1", fg="#8A6D00", anchor="w",
-                     wraplength=860, justify="left").pack(fill="x", pady=1)
+            tk.Label(inner, text="  " + n, bg="#FFF6E9", fg="#A8741B", anchor="w",
+                     wraplength=880, justify="left").pack(fill="x", pady=1)
 
     def _update_med(self):
         total = 0
@@ -250,50 +365,70 @@ class App(tk.Tk):
             sub.config(text=f"${s:,}")
         self.med_total.config(text=f"${total:,}")
 
-    # ---------------- ③ 罪名速查 ----------------
+    # ---------- ③ 罪名速查 ----------
     def _build_law(self, nb):
-        f = tk.Frame(nb, bg=PAGE); nb.add(f, text="  罪名速查  ")
-        bar = tk.Frame(f, bg=PAGE); bar.pack(fill="x", padx=6, pady=6)
-        tk.Label(bar, text="搜索：", bg=PAGE).pack(side="left")
-        self.law_q = tk.Entry(bar)
+        f = tk.Frame(nb, bg=BG); nb.add(f, text="  罪名速查  ")
+        bar = tk.Frame(f, bg=BG); bar.pack(fill="x", padx=6, pady=6)
+        tk.Label(bar, text="🔍 搜索：", bg=BG, fg=NAVY).pack(side="left")
+        self.law_q = tk.Entry(bar, relief="flat", highlightthickness=2,
+                              highlightbackground=PINK, highlightcolor="#FF5FA2")
         self.law_q.pack(side="left", fill="x", expand=True)
         self.law_q.bind("<KeyRelease>", lambda e: self._fill_law())
 
         cols = ("章节", "罪名", "定性", "刑期(年)", "罚款($)", "说明")
         self.tree = ttk.Treeview(f, columns=cols, show="headings")
-        widths = (110, 200, 80, 70, 90, 380)
-        for c, w in zip(cols, widths):
+        for c, w in zip(cols, (110, 200, 84, 70, 90, 380)):
             self.tree.heading(c, text=c); self.tree.column(c, width=w, anchor="w")
+        self.tree.tag_configure("hover", background="#FFE3EE")
         vsb = ttk.Scrollbar(f, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=vsb.set)
         self.tree.pack(side="left", fill="both", expand=True, padx=(6, 0), pady=(0, 6))
         vsb.pack(side="right", fill="y", pady=(0, 6))
+        self._hover_row = None
+        self.tree.bind("<Motion>", self._tree_hover)
+        self.tree.bind("<Leave>", lambda e: self._tree_unhover())
         self._fill_law()
+
+    def _tree_hover(self, e):
+        row = self.tree.identify_row(e.y)
+        if row == self._hover_row:
+            return
+        self._tree_unhover()
+        if row:
+            self.tree.item(row, tags=("hover",))
+            self._hover_row = row
+
+    def _tree_unhover(self):
+        if self._hover_row:
+            try:
+                self.tree.item(self._hover_row, tags=())
+            except tk.TclError:
+                pass
+            self._hover_row = None
 
     def _fill_law(self):
         q = self.law_q.get().strip()
         self.tree.delete(*self.tree.get_children())
         for chap, name, kind, months, fine, kws, note in D.CHARGES:
-            blob = chap + name + kind + note + "".join(kws)
-            if q and q not in blob:
+            if q and q not in (chap + name + kind + note + "".join(kws)):
                 continue
             fee = f"{fine:,}" if fine else "—"
             yr = months / 12
             yr = (int(yr) if yr == int(yr) else round(yr, 2)) if months else "—"
             self.tree.insert("", "end", values=(chap, name, kind, yr, fee, note))
 
-    # ---------------- ④ 规章速查 ----------------
+    # ---------- ④ 规章速查 ----------
     def _build_rules(self, nb):
-        f = tk.Frame(nb, bg=PAGE); nb.add(f, text="  规章速查  ")
-        txt = tk.Text(f, wrap="word", bg="white", relief="solid", bd=1,
-                      font=("Microsoft YaHei UI", 10), padx=10, pady=8)
+        f = tk.Frame(nb, bg=BG); nb.add(f, text="  规章速查  ")
+        txt = tk.Text(f, wrap="word", bg="white", relief="flat", font=("Microsoft YaHei UI", 10),
+                      padx=10, pady=8, highlightthickness=2, highlightbackground=PINK)
         vsb = ttk.Scrollbar(f, orient="vertical", command=txt.yview)
         txt.configure(yscrollcommand=vsb.set)
         txt.pack(side="left", fill="both", expand=True, padx=(6, 0), pady=6)
         vsb.pack(side="right", fill="y", pady=6)
         txt.tag_config("h", foreground="white", background=NAVY,
                        font=("Microsoft YaHei UI", 11, "bold"), spacing1=6, spacing3=4)
-        txt.tag_config("k", foreground=BLUE, font=("Microsoft YaHei UI", 10, "bold"))
+        txt.tag_config("k", foreground=HOT, font=("Microsoft YaHei UI", 10, "bold"))
         for typ, a, b in D.RULES:
             if typ == "H":
                 txt.insert("end", " " + a + " \n", "h")

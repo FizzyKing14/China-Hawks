@@ -8,7 +8,7 @@ echo 正在安装打包工具(首次较慢)...
 python -m pip install --upgrade pyinstaller openpyxl
 echo.
 echo 正在打包...
-pyinstaller --onefile --noconsole --icon "icon.ico" --add-data "icon.ico;." --name "案件罪名分析器" app.py
+pyinstaller --onefile --noconsole --icon "icon.ico" --add-data "icon.ico;." --add-data "logo.png;." --name "案件罪名分析器" app.py
 echo.
 echo ============================================
 echo   完成！exe 在 dist\ 文件夹里，双击即可用。
