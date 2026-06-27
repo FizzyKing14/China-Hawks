@@ -321,7 +321,8 @@ EXTRA_KEYWORDS2 = {
     "三级谋杀罪": ["斗殴致死", "误伤致死", "过失致人死亡", "失手致死", "鲁莽撞死", "开车撞死", "意外撞死"],
     "非法拘禁罪": ["限制自由", "强行扣留", "囚禁他人", "绑人关押", "私设牢房", "关小黑屋", "私自拘禁"],
     "故意袭击罪": ["殴打他人", "打成重伤", "围攻", "群架", "动粗", "大打出手", "把人揍了", "一顿暴打",
-        "打人致伤", "持续殴打", "拳脚相加", "打到骨折"],
+        "打人致伤", "持续殴打", "拳脚相加", "打到骨折",
+        "开车撞人", "开车撞", "撞伤人", "撞伤", "撞倒人", "撞倒", "碾压", "驾车撞人", "故意撞人"],
     "绑架罪": ["绑架勒索", "绑架人质", "强行掳走", "劫持人质", "把人质绑了", "绑架撕票", "绑架他人"],
     "亵渎尸体罪": ["损毁尸体", "焚毁尸体", "藏匿尸体", "处理尸体", "毁尸灭迹"],
     "诈骗罪": ["诈骗他人", "骗取钱财", "诱骗钱财", "合同诈骗", "网络诈骗", "假冒诈骗", "诈骗财物", "骗财", "诱骗财物"],
@@ -379,9 +380,49 @@ EXTRA_KEYWORDS2 = {
     "身份盗用罪": ["盗用他人身份", "冒用他人信息", "窃取个人信息", "假冒他人身份", "盗用他人信息"],
 }
 
-# 合并去重（两批一起）
+# =====================================================================
+#  内务违规 (违反规章制度)  —  定性"内务违规", 不计刑期/罚款, 后果是内务处分
+#  来源: 小首尔医护手册/注意事项、City of Desire 警员手册、LSPD 部门手册
+#  注: 这些是"附加"的职务处分; 若同时伤害公民, 上面的刑事罪名照样判
+# =====================================================================
+REG_CHARGES = [
+    # ---- 医护 ----
+    ("规·医护", "私自搜查患者", "内务违规", 0, 0,
+     ["私自搜查患者", "搜患者背包", "拿患者物资", "拿患者枪械", "翻患者背包", "搜病人背包", "拿病人物资", "搜患者"],
+     "内务处分：第一次警告，第二次直接开除"),
+    ("规·医护", "医护乱收费/收私钱", "内务违规", 0, 0,
+     ["乱收费", "收私钱", "不开账单", "医护乱收费", "乱开价", "私收钱", "收红包"],
+     "内务处分：核实降级，多次开除"),
+    ("规·医护", "拒绝救治/拒绝住院", "内务违规", 0, 0,
+     ["拒绝救治", "拒绝住院", "拒绝复活", "见死不救", "拒绝治疗"],
+     "内务违规：不得以任何理由拒绝住院/救治"),
+    ("规·医护", "医护上班违规", "内务违规", 0, 0,
+     ["上班开私家车", "医护开私家车", "上班不穿工服", "医护介入纠纷", "医护参与斗殴",
+      "救援不开警笛", "上班兼职", "医护私自上班"],
+     "内务违规：须穿工服/开救护车/不介入纠纷/开警灯警笛等"),
+    # ---- 警务 ----
+    ("规·警务", "警械流出", "内务违规", 0, 0,
+     ["警械流出", "卖警械", "赠送警械", "倒卖警械", "私自配枪给", "流出警枪"],
+     "违反联邦法：FBI 调查，甚至永久驱逐出境"),
+    ("规·警务", "滥用/越级武力", "内务违规", 0, 0,
+     ["滥用武力", "越级使用武力", "过度执法", "无故对市民开枪", "违规使用致命武力",
+      "错误使用致命武器", "暴力执法", "无故殴打市民"],
+     "内务调查：错误/越级使用武力将受内务组调查"),
+    ("规·警务", "未宣读米兰达", "内务违规", 0, 0,
+     ["未宣读米兰达", "没读米兰达", "未读米兰达", "没宣读米兰达", "未念米兰达", "没念米兰达",
+      "未宣读权利", "没宣读权利", "漏读米兰达"],
+     "程序违规：未完整宣读/未记录，嫌犯可要求无罪释放"),
+    ("规·警务", "警员违规驾驶/酒驾警车", "内务违规", 0, 0,
+     ["酒后开警车", "醉驾警车", "警车违规驾驶", "下班穿工服开公车", "非任务违规驾驶警车", "警员酒驾"],
+     "内务处分：严禁酒驾/违规使用警车"),
+    ("规·警务", "越权/虚报职务", "内务违规", 0, 0,
+     ["冒充警衔", "谎报警衔", "虚报职务", "越权执法", "假传命令"],
+     "内务调查：越权执法/虚报职务"),
+]
+
+# 合并去重（两批一起 + 内务违规）
 _merged = []
-for chap, name, kind, months, fine, kws, note in CHARGES:
+for chap, name, kind, months, fine, kws, note in CHARGES + REG_CHARGES:
     allk = list(dict.fromkeys(
         kws + EXTRA_KEYWORDS.get(name, []) + EXTRA_KEYWORDS2.get(name, [])))
     _merged.append((chap, name, kind, months, fine, allk, note))
@@ -395,6 +436,7 @@ MAX_TOTAL_MONTHS = 60   # 数罪叠加, 总刑期封顶 5 年
 C_NAVY="12243B"; C_BLUE="1F3A5F"; C_STEEL="2C4A7C"; C_TEAL="1E6B5C"; C_PLUM="5E4B8B"
 C_GOLD="C9A227"; C_GOLDL="F3E6BE"; C_PAGE="F4F6FA"; C_INK="1B2A41"; C_MUTE="6B7280"
 C_INPUT="FFFDF5"; C_FELONY="F6D4CE"; C_MISD="FBE3CC"; C_INFRACT="FBF1C7"; C_HIT="CDE8D5"
+C_DISC="E5DBF0"   # 内务违规 浅紫
 
 thin = Side(style="thin", color="D5DCE6")
 BORDER = Border(left=thin, right=thin, top=thin, bottom=thin)
@@ -465,7 +507,8 @@ def build_law_and_kw(ws_law, ws_kw):
 
     # ---- 罪名表(引擎+参考): 命中列 G/H/I, 累积 J/K/L ----
     headers = ["章节", "罪名", "定性", "刑期(月)", "罚款($)", "说明 / 量刑要点",
-               "甲命中", "乙命中", "丙命中", "甲累积", "乙累积", "丙累积"]
+               "甲命中", "乙命中", "丙命中", "甲刑事", "乙刑事", "丙刑事",
+               "甲违规", "乙违规", "丙违规"]
     for ci, h in enumerate(headers, start=1):
         c = ws_law.cell(row=1, column=ci, value=h)
         c.font = Font(color="FFFFFF", bold=True)
@@ -478,7 +521,8 @@ def build_law_and_kw(ws_law, ws_kw):
         ws_law.cell(row=r, column=2, value=name).font = Font(bold=True)
         kc = ws_law.cell(row=r, column=3, value=kind)
         kc.alignment = CENTER
-        kc.fill = fill({"重罪": C_FELONY, "轻罪": C_MISD, "违法": C_INFRACT}.get(kind, "FFFFFF"))
+        kc.fill = fill({"重罪": C_FELONY, "轻罪": C_MISD, "违法": C_INFRACT,
+                        "内务违规": C_DISC}.get(kind, "FFFFFF"))
         ws_law.cell(row=r, column=4, value=months).alignment = CENTER
         fc = ws_law.cell(row=r, column=5, value=fine)
         fc.alignment = CENTER
@@ -491,22 +535,29 @@ def build_law_and_kw(ws_law, ws_kw):
             value=f"=IF(SUMIFS('关键词库'!$D$2:$D${kw_rows+1},'关键词库'!$B$2:$B${kw_rows+1},$B{r})>0,1,0)")
         ws_law.cell(row=r, column=9,
             value=f"=IF(SUMIFS('关键词库'!$E$2:$E${kw_rows+1},'关键词库'!$B$2:$B${kw_rows+1},$B{r})>0,1,0)")
-        # 累积命中罪名
+        # 累积·刑事罪名(J/K/L, 排除内务违规) + 累积·内务违规含处分(M/N/O)
         if r == law_first:
-            ws_law.cell(row=r, column=10, value=f'=IF($G{r}=1,$B{r},"")')
-            ws_law.cell(row=r, column=11, value=f'=IF($H{r}=1,$B{r},"")')
-            ws_law.cell(row=r, column=12, value=f'=IF($I{r}=1,$B{r},"")')
+            ws_law.cell(row=r, column=10, value=f'=IF(AND($G{r}=1,$C{r}<>"内务违规"),$B{r},"")')
+            ws_law.cell(row=r, column=11, value=f'=IF(AND($H{r}=1,$C{r}<>"内务违规"),$B{r},"")')
+            ws_law.cell(row=r, column=12, value=f'=IF(AND($I{r}=1,$C{r}<>"内务违规"),$B{r},"")')
+            ws_law.cell(row=r, column=13, value=f'=IF(AND($G{r}=1,$C{r}="内务违规"),$B{r}&"（"&$F{r}&"）","")')
+            ws_law.cell(row=r, column=14, value=f'=IF(AND($H{r}=1,$C{r}="内务违规"),$B{r}&"（"&$F{r}&"）","")')
+            ws_law.cell(row=r, column=15, value=f'=IF(AND($I{r}=1,$C{r}="内务违规"),$B{r}&"（"&$F{r}&"）","")')
         else:
-            ws_law.cell(row=r, column=10, value=f'=IF($G{r}=1,IF($J{r-1}="",$B{r},$J{r-1}&"、"&$B{r}),$J{r-1})')
-            ws_law.cell(row=r, column=11, value=f'=IF($H{r}=1,IF($K{r-1}="",$B{r},$K{r-1}&"、"&$B{r}),$K{r-1})')
-            ws_law.cell(row=r, column=12, value=f'=IF($I{r}=1,IF($L{r-1}="",$B{r},$L{r-1}&"、"&$B{r}),$L{r-1})')
-        for ci in range(1, 13):
+            ws_law.cell(row=r, column=10, value=f'=IF(AND($G{r}=1,$C{r}<>"内务违规"),IF($J{r-1}="",$B{r},$J{r-1}&"、"&$B{r}),$J{r-1})')
+            ws_law.cell(row=r, column=11, value=f'=IF(AND($H{r}=1,$C{r}<>"内务违规"),IF($K{r-1}="",$B{r},$K{r-1}&"、"&$B{r}),$K{r-1})')
+            ws_law.cell(row=r, column=12, value=f'=IF(AND($I{r}=1,$C{r}<>"内务违规"),IF($L{r-1}="",$B{r},$L{r-1}&"、"&$B{r}),$L{r-1})')
+            ws_law.cell(row=r, column=13, value=f'=IF(AND($G{r}=1,$C{r}="内务违规"),IF($M{r-1}="",$B{r}&"（"&$F{r}&"）",$M{r-1}&"；"&$B{r}&"（"&$F{r}&"）"),$M{r-1})')
+            ws_law.cell(row=r, column=14, value=f'=IF(AND($H{r}=1,$C{r}="内务违规"),IF($N{r-1}="",$B{r}&"（"&$F{r}&"）",$N{r-1}&"；"&$B{r}&"（"&$F{r}&"）"),$N{r-1})')
+            ws_law.cell(row=r, column=15, value=f'=IF(AND($I{r}=1,$C{r}="内务违规"),IF($O{r-1}="",$B{r}&"（"&$F{r}&"）",$O{r-1}&"；"&$B{r}&"（"&$F{r}&"）"),$O{r-1})')
+        for ci in range(1, 16):
             ws_law.cell(row=r, column=ci).border = BORDER
         ws_law.row_dimensions[r].height = 26
     for col, w in {"A": 12, "B": 24, "C": 8, "D": 10, "E": 11, "F": 50,
-                   "G": 7, "H": 7, "I": 7, "J": 26, "K": 26, "L": 26}.items():
+                   "G": 7, "H": 7, "I": 7, "J": 26, "K": 26, "L": 26,
+                   "M": 26, "N": 26, "O": 26}.items():
         ws_law.column_dimensions[col].width = w
-    for col in ("G", "H", "I", "J", "K", "L"):
+    for col in ("G", "H", "I", "J", "K", "L", "M", "N", "O"):
         ws_law.column_dimensions[col].hidden = True
     ws_law.freeze_panes = "A2"
     ws_law.sheet_view.showGridLines = False
@@ -554,7 +605,7 @@ def build_main(m):
     pc = {"甲": C_STEEL, "乙": C_TEAL, "丙": C_PLUM}
     for col, w in {"A": 13, "B": 40, "C": 8, "D": 12, "E": 13, "F": 15}.items():
         m.column_dimensions[col].width = w
-    paint(m, "A1:F20", fillc=fill(C_PAGE))
+    paint(m, "A1:F26", fillc=fill(C_PAGE))
 
     # 标题
     m.merge_cells("A1:F1")
@@ -613,8 +664,8 @@ def build_main(m):
     m.row_dimensions[9].height = 22
 
     law_last = len(CHARGES) + 1
-    sus = [("甲", "G", "J", 10), ("乙", "H", "K", 11), ("丙", "I", "L", 12)]
-    for pname, hit, cum, r in sus:
+    sus = [("甲", "G", "J", "M", 10), ("乙", "H", "K", "N", 11), ("丙", "I", "L", "O", 12)]
+    for pname, hit, cum, vcum, r in sus:
         nm = m.cell(row=r, column=1, value=f"当事人{pname}")
         nm.font = Font(color="FFFFFF", bold=True)
         nm.fill = fill(pc[pname])
@@ -622,7 +673,9 @@ def build_main(m):
         nm.border = BORDER
         m.cell(row=r, column=2,
                value=f'=IF(\'罪名表\'!${cum}${law_last}="","（这句话没识别到罪名，请补充细节或去「关键词库」加词）",\'罪名表\'!${cum}${law_last})')
-        m.cell(row=r, column=3, value=f"=SUM('罪名表'!${hit}$2:${hit}${law_last})")
+        # 罪名数(只数刑事罪名, 不含内务违规)
+        m.cell(row=r, column=3,
+               value=f'=SUMPRODUCT((\'罪名表\'!${hit}$2:${hit}${law_last}=1)*(\'罪名表\'!$C$2:$C${law_last}<>"内务违规"))')
         m.cell(row=r, column=4,
                value=f"=MIN({MAX_TOTAL_MONTHS},SUMIF('罪名表'!${hit}$2:${hit}${law_last},1,'罪名表'!$D$2:$D${law_last}))")
         m.cell(row=r, column=5,
@@ -656,15 +709,36 @@ def build_main(m):
                '&"　|　仅供参考，正当防卫 / 堡垒原则 / 同类不并罚等请人工复核")')
     m.row_dimensions[14].height = 36
 
+    # ③ 内务违规 / 处分（职务人员附加，不计刑期）
     m.row_dimensions[15].height = 6
     m.merge_cells("A16:F16")
-    paint(m, "A16:F16", fillc=fill(C_PAGE),
+    s3 = paint(m, "A16:F16", fillc=fill(C_DISC),
+               font=Font(bold=True, size=11, color="4A2E6B"), align=LEFTV)
+    s3.value = "　③ 内务违规 / 处分　—　职务人员（警员/医护）额外追加；伤害公民的刑事罪名已在上方照常计入"
+    m.cell(row=16, column=1).border = Border(left=Side(style="thick", color=C_PLUM))
+    m.row_dimensions[16].height = 24
+    for pname, hit, cum, vcum, r0 in sus:
+        r = r0 + 7   # 17 / 18 / 19
+        nm = m.cell(row=r, column=1, value=f"当事人{pname}")
+        nm.font = Font(color="FFFFFF", bold=True)
+        nm.fill = fill(pc[pname])
+        nm.alignment = CENTER
+        nm.border = BORDER
+        m.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+        vc = paint(m, f"B{r}:F{r}", fillc=fill("F7F4FB"),
+                   font=Font(size=10, color="4A2E6B"), align=WRAP_TOP, border=BORDER)
+        vc.value = f'=IF(\'罪名表\'!${vcum}${law_last}="","（无内务违规）",\'罪名表\'!${vcum}${law_last})'
+        m.row_dimensions[r].height = 30
+
+    m.row_dimensions[20].height = 6
+    m.merge_cells("A21:F21")
+    paint(m, "A21:F21", fillc=fill(C_PAGE),
           font=Font(size=9, italic=True, color=C_MUTE), align=WRAP_TOP).value = \
-        ("提示 · 写得越具体识别越准（如「持枪、拒捕、开枪、逃跑、贩毒」这些词）；"
-         "保释金 = 刑期(月)×罚款÷6；识别不到的说法，去「关键词库」加一行即可。")
-    m.row_dimensions[16].height = 32
-    m.merge_cells("A18:F18")
-    paint(m, "A18:F18", fillc=fill(C_PAGE),
+        ("提示 · 写得越具体识别越准（如「持枪、拒捕、开枪、撞伤、贩毒」）；保释金 = 刑期(月)×罚款÷6；"
+         "刑事罪名对所有人一视同仁，职务违规只是额外加一层内务处分；识别不到的说法去「关键词库」加。")
+    m.row_dimensions[21].height = 34
+    m.merge_cells("A23:F23")
+    paint(m, "A23:F23", fillc=fill(C_PAGE),
           font=Font(size=10, bold=True, color=C_NAVY), align=RIGHTV).value = "原创制作：袁尘　"
 
 
