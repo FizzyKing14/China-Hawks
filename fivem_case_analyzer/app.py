@@ -22,9 +22,19 @@ def resource_path(rel):
     base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base, rel)
 
-NAVY = "#12243B"; BLUE = "#1F3A5F"; GOLD = "#C9A227"; GOLDL = "#F3E6BE"
-PAGE = "#F4F6FA"; INK = "#1B2A41"; MUTE = "#6B7280"; RED = "#C0392B"
-STEEL = "#2C4A7C"; TEAL = "#1E6B5C"; PLUM = "#5E4B8B"; SRV = "#B5731B"
+# 🎀 织梦星 STAR · 少女芭比粉主题
+NAVY = "#C2185B"   # 深玫红(横幅/表头/结论 背景, 白字 / 也作分区文字)
+BLUE = "#FF7EB3"   # 亮粉(表头背景, 白字)
+GOLD = "#FF7EB3"   # 亮粉(横幅描边/医疗合计条)
+GOLDL = "#FFD1DC"  # 芭比粉(分区条背景)
+PAGE = "#FFF0F5"   # 浅粉(页面底)
+INK = "#7A3B5D"    # 深莓(正文)
+MUTE = "#C99BB3"   # 淡莓灰(次要)
+RED = "#D81B60"    # 玫粉红(罪名/数字 强调)
+STEEL = "#FF7EB3"  # 当事人甲 粉
+TEAL = "#5FB0D9"   # 当事人乙 天蓝
+PLUM = "#B07CD6"   # 当事人丙 / 内务违规 紫
+SRV = "#E8800C"    # 服务器违规 橙
 CAP = D.MAX_TOTAL_MONTHS
 NONCRIM = ("内务违规", "服务器违规")
 PARTY_COLOR = {"甲": STEEL, "乙": TEAL, "丙": PLUM}
@@ -52,22 +62,25 @@ def analyze(text):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("圣安地列斯州 · 案件罪名分析器")
-        self.geometry("960x700")
+        self.title("✨ 织梦星STAR · 案件罪名分析器 ✨")
+        self.geometry("960x720")
         self.configure(bg=PAGE)
         try:
             self.iconbitmap(resource_path("icon.ico"))
         except Exception:
             pass
         self.option_add("*Font", ("Microsoft YaHei UI", 10))
+        self._init_style()
 
         # 顶部横幅
         banner = tk.Frame(self, bg=NAVY)
         banner.pack(fill="x")
-        tk.Label(banner, text="⚖   圣安地列斯州 · 案件罪名分析器   🦅",
-                 bg=NAVY, fg="white", font=("Microsoft YaHei UI", 17, "bold"),
-                 pady=10).pack()
-        tk.Frame(self, bg=GOLD, height=3).pack(fill="x")
+        tk.Label(banner, text="✨🎀  织梦星 STAR · 案件罪名分析器  🎀✨",
+                 bg=NAVY, fg="white", font=("Microsoft YaHei UI", 18, "bold"),
+                 pady=(10, 0)).pack()
+        tk.Label(banner, text="圣安地列斯州 · STAR Roleplay　💗　一句话自动算罪",
+                 bg=NAVY, fg="#FFE3EE", font=("Microsoft YaHei UI", 9), pady=(0, 8)).pack()
+        tk.Frame(self, bg=GOLD, height=4).pack(fill="x")
 
         nb = ttk.Notebook(self)
         nb.pack(fill="both", expand=True, padx=8, pady=6)
@@ -76,13 +89,31 @@ class App(tk.Tk):
         self._build_law(nb)
         self._build_rules(nb)
 
-        tk.Label(self, text="原创制作：袁尘", bg=PAGE, fg=NAVY,
-                 font=("Microsoft YaHei UI", 9, "bold"), anchor="e").pack(fill="x", padx=12, pady=2)
+        tk.Label(self, text="✨ 织梦星 STAR Roleplay　|　原创制作：袁尘 ✨", bg=PAGE, fg=RED,
+                 font=("Microsoft YaHei UI", 9, "bold"), anchor="center").pack(fill="x", padx=12, pady=3)
+
+    def _init_style(self):
+        style = ttk.Style(self)
+        try:
+            style.theme_use("clam")
+        except tk.TclError:
+            pass
+        style.configure("TNotebook", background=PAGE, borderwidth=0)
+        style.configure("TNotebook.Tab", background=GOLDL, foreground=NAVY,
+                        padding=(18, 7), font=("Microsoft YaHei UI", 10, "bold"))
+        style.map("TNotebook.Tab",
+                  background=[("selected", NAVY)], foreground=[("selected", "white")])
+        style.configure("Treeview", background="white", fieldbackground="white",
+                        foreground=INK, rowheight=24)
+        style.configure("Treeview.Heading", background=BLUE, foreground="white",
+                        font=("Microsoft YaHei UI", 10, "bold"))
+        style.configure("TScrollbar", background=GOLDL, troughcolor=PAGE)
+        style.configure("TSpinbox", fieldbackground="#FFF5F9", arrowcolor=NAVY)
 
     # ---------------- ① 算罪台 ----------------
     def _build_analyzer(self, nb):
         f = tk.Frame(nb, bg=PAGE); nb.add(f, text="  算罪台  ")
-        tk.Label(f, text="① 把每个人做了什么，用一句话写进框里 → 自动算罪（边打边出结果）",
+        tk.Label(f, text="🎀 ① 把每个人做了什么，用一句话写进框里 → 自动算罪（边打边出结果）",
                  bg=GOLDL, fg=NAVY, font=("Microsoft YaHei UI", 10, "bold"),
                  anchor="w", padx=8, pady=4).pack(fill="x", padx=6, pady=(6, 2))
 
@@ -99,7 +130,7 @@ class App(tk.Tk):
             self.inputs[p] = t
         self.inputs["甲"].insert("1.0", "嫌疑人持枪抢劫便利店，被警察拦下后拒捕并开枪，然后驾车逃跑还撞坏了路边的车。")
 
-        tk.Label(f, text="② 分析结果", bg=GOLDL, fg=NAVY, font=("Microsoft YaHei UI", 10, "bold"),
+        tk.Label(f, text="💗 ② 分析结果", bg=GOLDL, fg=NAVY, font=("Microsoft YaHei UI", 10, "bold"),
                  anchor="w", padx=8, pady=4).pack(fill="x", padx=6, pady=(8, 2))
 
         self.out = tk.Text(f, wrap="word", bg="white", relief="solid", bd=1, state="disabled",
@@ -163,7 +194,7 @@ class App(tk.Tk):
     def _build_medical(self, nb):
         f = tk.Frame(nb, bg=PAGE); nb.add(f, text="  医疗费用计算器  ")
         top = tk.Frame(f, bg=GOLD); top.pack(fill="x", padx=6, pady=6)
-        tk.Label(top, text="💴 本次合计：", bg=GOLD, fg="white",
+        tk.Label(top, text="💗 本次合计：", bg=GOLD, fg="white",
                  font=("Microsoft YaHei UI", 12, "bold")).pack(side="left", padx=8, pady=6)
         self.med_total = tk.Label(top, text="$0", bg=GOLD, fg="white",
                                   font=("Microsoft YaHei UI", 14, "bold"))
