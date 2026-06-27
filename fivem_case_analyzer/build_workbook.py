@@ -701,7 +701,7 @@ def build_law_and_kw(ws_law, ws_kw):
     kw_rows = sum(len(c[5]) for c in CHARGES)
 
     # ---- 罪名表(引擎+参考): 命中列 G/H/I, 累积 J/K/L ----
-    headers = ["章节", "罪名", "定性", "刑期(月)", "罚款($)", "说明 / 量刑要点",
+    headers = ["章节", "罪名", "定性", "刑期(年)", "罚款($)", "说明 / 量刑要点",
                "甲命中", "乙命中", "丙命中", "甲刑事", "乙刑事", "丙刑事",
                "甲违规", "乙违规", "丙违规"]
     for ci, h in enumerate(headers, start=1):
@@ -718,7 +718,9 @@ def build_law_and_kw(ws_law, ws_kw):
         kc.alignment = CENTER
         kc.fill = fill({"重罪": C_FELONY, "轻罪": C_MISD, "违法": C_INFRACT,
                         "内务违规": C_DISC, "服务器违规": C_SRV}.get(kind, "FFFFFF"))
-        ws_law.cell(row=r, column=4, value=months).alignment = CENTER
+        yrs = months / 12
+        yrs = int(yrs) if yrs == int(yrs) else round(yrs, 2)
+        ws_law.cell(row=r, column=4, value=yrs).alignment = CENTER
         fc = ws_law.cell(row=r, column=5, value=fine)
         fc.alignment = CENTER
         fc.number_format = '#,##0'
@@ -851,7 +853,7 @@ def build_main(m):
     m.cell(row=8, column=1).border = Border(left=Side(style="thick", color=C_GOLD))
     m.row_dimensions[8].height = 24
 
-    res_hdr = ["当事人", "犯下的罪名", "罪名数", "合计刑期(月)", "合计罚款($)", "建议保释金($)"]
+    res_hdr = ["当事人", "犯下的罪名", "罪名数", "合计刑期(年)", "合计罚款($)", "建议保释金($)"]
     for ci, h in enumerate(res_hdr, start=1):
         c = m.cell(row=9, column=ci, value=h)
         c.font = Font(color="FFFFFF", bold=True)
@@ -874,7 +876,7 @@ def build_main(m):
         m.cell(row=r, column=3,
                value=f'=SUMPRODUCT((\'罪名表\'!${hit}$2:${hit}${law_last}=1)*(\'罪名表\'!$C$2:$C${law_last}<>"内务违规")*(\'罪名表\'!$C$2:$C${law_last}<>"服务器违规"))')
         m.cell(row=r, column=4,
-               value=f"=MIN({MAX_TOTAL_MONTHS},SUMIF('罪名表'!${hit}$2:${hit}${law_last},1,'罪名表'!$D$2:$D${law_last}))")
+               value=f"=MIN(5,SUMIF('罪名表'!${hit}$2:${hit}${law_last},1,'罪名表'!$D$2:$D${law_last}))")
         m.cell(row=r, column=5,
                value=f"=SUMIF('罪名表'!${hit}$2:${hit}${law_last},1,'罪名表'!$E$2:$E${law_last})")
         m.cell(row=r, column=6, value=f"=ROUND(D{r}*E{r}/6,0)")
@@ -902,7 +904,7 @@ def build_main(m):
     v.value = ('=IF(MAX(D10,D11,D12)=0,'
                '"⚠ 还没识别到罪名：在上面把案情写得更具体些，或去「关键词库」补充说法。",'
                '"🔨 主要责任方：当事人"&IF(D10=MAX(D10,D11,D12),"甲",IF(D11=MAX(D10,D11,D12),"乙","丙"))'
-               '&"　|　合计刑期 "&MAX(D10,D11,D12)&" 个月（"&ROUND(MAX(D10,D11,D12)/12,1)&" 年）"'
+               '&"　|　合计刑期 "&MAX(D10,D11,D12)&" 年"'
                '&"　|　仅供参考，正当防卫 / 堡垒原则 / 同类不并罚等请人工复核")')
     m.row_dimensions[14].height = 36
 
@@ -931,7 +933,7 @@ def build_main(m):
     m.merge_cells("A21:F21")
     paint(m, "A21:F21", fillc=fill(C_PAGE),
           font=Font(size=9, italic=True, color=C_MUTE), align=WRAP_TOP).value = \
-        ("提示 · 写得越具体识别越准（如「持枪、拒捕、开枪、撞伤、贩毒」）；保释金 = 刑期(月)×罚款÷6；"
+        ("提示 · 写得越具体识别越准（如「持枪、拒捕、开枪、撞伤、贩毒」）；保释金 = 刑期(年)×罚款÷6；"
          "刑事罪名对所有人一视同仁，职务违规只是额外加一层内务处分；识别不到的说法去「关键词库」加。")
     m.row_dimensions[21].height = 34
     m.merge_cells("A23:F23")
@@ -958,8 +960,8 @@ def build_help(h):
         ("", "如果某种说法没被识别 → 打开「关键词库」页，A 列加上你的说法、B 列写对应罪名即可，立即生效。"),
         ("③ 计算规则（依法典）", ""),
         ("", "时间换算：1 年 = 12 个月 = 12 分钟（游戏内监禁时间）。"),
-        ("", "数罪叠加、罚款累计；总刑期最高 5 年(60 个月)，同一罪名不重复并罚。"),
-        ("", "建议保释金 = 刑期(月) × 罚款 ÷ 6（法典第九章·保释）。"),
+        ("", "数罪叠加、罚款累计；总刑期最高 5 年，同一罪名不重复并罚。"),
+        ("", "建议保释金 = 刑期(年) × 罚款 ÷ 6（法典第九章·保释）。"),
         ("", "抢劫/盗窃/破坏等另需按价值赔偿，本表未自动计算。"),
         ("④ 需人工复核", ""),
         ("", "正当防卫 / 堡垒原则可减免；未遂/同谋/教唆/从犯按主罪同罪；包庇按主犯≤50%。"),
@@ -1156,7 +1158,7 @@ RULES = [
     ("R", "时机与开火", "不得直接冲入抢劫现场；须等目标帮派完成主要行为/准备撤离时方可拦截；黑吃黑属劫后行为，禁止干扰原抢劫；未合理互动(拦截/喊话)前不得直接开火；驱离须互动，二次进入可再驱离或直接开火。"),
     ("R", "警察介入", "警察已到场处理抢劫时，黑吃黑须等警察与目标帮派扮演结束；警察获胜或现场被控制，黑吃黑须撤离至两个街区外。"),
     ("H", "📜 司法程序 / 宪法 · 要点", ""),
-    ("R", "保释/赔偿", "保释金 = 刑期(月) × 罚款 ÷ 6；赔偿：财产≥$8000、人身/精神 $5000~$80000；警局错误扣留赔偿 $500/分钟。"),
+    ("R", "保释/赔偿", "保释金 = 刑期(年) × 罚款 ÷ 6；赔偿：财产≥$8000、人身/精神 $5000~$80000；警局错误扣留赔偿 $500/分钟。"),
     ("R", "拒缴罚金", "拒缴 3 次及以上司法部强制执行、个人资产抵押；无资产者 $5,000 罚金 = 2 年监禁；主观无力可记录资料 7 天内补交。"),
     ("R", "戒严令", "政府可据治安发布戒严令：禁遮挡面部(口罩除外)、禁公共区域聚集/逗留、执法机构全员巡逻。"),
     ("R", "公民权利", "人身自由不受无理拘禁；搜查/扣押须依法签发搜查令且具合理根据；重罪经大陪审团或法官批准起诉；被告享公开审判/对质/律师辩护；不得施私刑/残酷或过当罚金。"),

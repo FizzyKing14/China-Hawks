@@ -42,9 +42,11 @@ def analyze(text):
                 else:
                     crim.append((name, kind, months, fine, note))
     months = min(CAP, sum(c[2] for c in crim))
+    years = months / 12
+    years = int(years) if years == int(years) else round(years, 2)
     fine = sum(c[3] for c in crim)
-    bail = round(months * fine / 6)
-    return crim, vio, months, fine, bail, len(crim)
+    bail = round(years * fine / 6)   # 保释金按年算：刑期(年) × 罚款 ÷ 6
+    return crim, vio, years, fine, bail, len(crim)
 
 
 class App(tk.Tk):
@@ -127,14 +129,14 @@ class App(tk.Tk):
             txt = self.inputs[p].get("1.0", "end-1c").strip()
             if not txt:
                 continue
-            crim, vio, months, fine, bail, n = analyze(txt)
+            crim, vio, years, fine, bail, n = analyze(txt)
             self.out.insert("end", f" 当事人{p} \n", "h")
             if crim:
                 self.out.insert("end", "  刑事罪名（%d）：" % n)
                 self.out.insert("end", "、".join(c[0] for c in crim) + "\n", "crim")
                 self.out.insert("end", "  合计刑期 ")
-                self.out.insert("end", f"{months}", "num")
-                self.out.insert("end", " 个月  |  罚款 ")
+                self.out.insert("end", f"{years}", "num")
+                self.out.insert("end", " 年  |  罚款 ")
                 self.out.insert("end", f"${fine:,}", "num")
                 self.out.insert("end", "  |  建议保释金 ")
                 self.out.insert("end", f"${bail:,}\n", "num")
@@ -146,12 +148,12 @@ class App(tk.Tk):
                     tag = "disc" if "内务" in note or "FBI" in note or "开除" in note else "vio"
                     self.out.insert("end", f"     • {name}　{note}\n", tag)
             self.out.insert("end", "\n")
-            if months > best[1]:
-                best = (p, months)
+            if years > best[1]:
+                best = (p, years)
         if best[0] and best[1] > 0:
             self.out.insert("end",
-                            f" 🔨 主要责任方：当事人{best[0]}  |  合计刑期 {best[1]} 个月"
-                            f"（{round(best[1]/12,1)} 年）  |  仅供参考，正当防卫/堡垒原则等请人工复核 \n",
+                            f" 🔨 主要责任方：当事人{best[0]}  |  合计刑期 {best[1]} 年"
+                            f"  |  仅供参考，正当防卫/堡垒原则等请人工复核 \n",
                             "verdict")
         elif not any(self.inputs[p].get("1.0", "end-1c").strip() for p in ("甲", "乙", "丙")):
             self.out.insert("end", "请在上方输入案情……", "mute")
@@ -226,7 +228,7 @@ class App(tk.Tk):
         self.law_q.pack(side="left", fill="x", expand=True)
         self.law_q.bind("<KeyRelease>", lambda e: self._fill_law())
 
-        cols = ("章节", "罪名", "定性", "刑期(月)", "罚款($)", "说明")
+        cols = ("章节", "罪名", "定性", "刑期(年)", "罚款($)", "说明")
         self.tree = ttk.Treeview(f, columns=cols, show="headings")
         widths = (110, 200, 80, 70, 90, 380)
         for c, w in zip(cols, widths):
@@ -245,8 +247,9 @@ class App(tk.Tk):
             if q and q not in blob:
                 continue
             fee = f"{fine:,}" if fine else "—"
-            mon = months if months else "—"
-            self.tree.insert("", "end", values=(chap, name, kind, mon, fee, note))
+            yr = months / 12
+            yr = (int(yr) if yr == int(yr) else round(yr, 2)) if months else "—"
+            self.tree.insert("", "end", values=(chap, name, kind, yr, fee, note))
 
     # ---------------- ④ 规章速查 ----------------
     def _build_rules(self, nb):
