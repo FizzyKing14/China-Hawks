@@ -103,11 +103,68 @@ class RoundButton(tk.Canvas):
             self.command()
 
 
+# ===================== 霓虹粉光边框（围着框转的线） =====================
+class NeonBorder(tk.Canvas):
+    def __init__(self, master, app, pad=9, inner_bg="#FFF8FB"):
+        super().__init__(master, bg=WHITE, highlightthickness=0)
+        self.app, self.pad = app, pad
+        self.inner = tk.Frame(self, bg=inner_bg)
+        self.win = self.create_window(pad, pad, anchor="nw", window=self.inner)
+        self.peri = []
+        self.off = 0
+        self.bind("<Configure>", self._cfg)
+        app.fx.append(self)
+
+    def cleanup(self):
+        if self in self.app.fx:
+            self.app.fx.remove(self)
+
+    def _cfg(self, e):
+        w, h = e.width, e.height
+        if w <= 1:
+            return
+        self.itemconfig(self.win, width=w - 2 * self.pad, height=h - 2 * self.pad)
+        self.delete("base")
+        self.create_polygon(_rr(4, 4, w - 4, h - 4, 14), smooth=True, fill="",
+                            outline=LINE, width=2, tags="base")
+        self.tag_lower("base")
+        self.peri = self._peri(w, h)
+
+    def _peri(self, w, h, step=7):
+        x0, y0, x1, y1 = 5, 5, w - 5, h - 5
+        pts = []
+        x = x0
+        while x < x1: pts.append((x, y0)); x += step
+        y = y0
+        while y < y1: pts.append((x1, y)); y += step
+        x = x1
+        while x > x0: pts.append((x, y1)); x -= step
+        y = y1
+        while y > y0: pts.append((x0, y)); y -= step
+        return pts
+
+    def tick(self, t):
+        if not self.peri:
+            return
+        try:
+            self.delete("comet")
+        except tk.TclError:
+            return
+        n = len(self.peri)
+        self.off = (self.off + 2) % n
+        K = 16
+        for i in range(K):
+            x, y = self.peri[(self.off - i) % n]
+            f = 1 - i / K
+            r = 1 + 3.2 * f
+            self.create_oval(x - r, y - r, x + r, y + r,
+                             fill=lerp("#FFD1DC", "#FF2D95", f), outline="", tags="comet")
+
+
 # ===================== 刑事罪名 · 实时涨跌图表 =====================
 class ChargeChart(tk.Canvas):
     def __init__(self, master, app):
-        super().__init__(master, bg=WHITE, highlightthickness=2,
-                         highlightbackground=LINE)
+        super().__init__(master, bg=WHITE, highlightthickness=0)
         self.app = app
         self.order = []
         self.bars = {}
@@ -161,7 +218,7 @@ class ChargeChart(tk.Canvas):
                          font=("Microsoft YaHei UI", 10))
         self.create_text(x + 22, 18, anchor="w", text=f"{n}", fill=NAVY,
                          font=("Microsoft YaHei UI", 13, "bold"))
-        self.create_text(x + 38, 18, anchor="w", text="条刑事罪名（按相似度排序）",
+        self.create_text(x + 38, 18, anchor="w", text="条刑事罪名",
                          fill=INK, font=("Microsoft YaHei UI", 10))
         live = [nm for nm in self.order if nm in self.bars]
         bx0, bx1 = 12, max(180, w - 56)
@@ -239,17 +296,21 @@ class SuspectPage(tk.Frame):
         body.rowconfigure(1, weight=1)
         tk.Label(body, text="📝 案件经过", bg=PINK, fg=NAVY, anchor="w", padx=8, pady=3,
                  font=("Microsoft YaHei UI", 10, "bold")).grid(row=0, column=0, sticky="ew", padx=(0, 6))
-        tk.Label(body, text="⚖ 刑事罪名（边打边算 · 实时涨跌）", bg=PINK, fg=NAVY, anchor="w",
+        tk.Label(body, text="⚖ 刑事罪名", bg=PINK, fg=NAVY, anchor="w",
                  padx=8, pady=3, font=("Microsoft YaHei UI", 10, "bold")).grid(
                  row=0, column=1, sticky="ew", padx=(6, 0))
-        self.case = tk.Text(body, wrap="word", bg="#FFF8FB", fg=INK, relief="flat",
-                           font=("Microsoft YaHei UI", 11), highlightthickness=2,
-                           highlightbackground=LINE, highlightcolor="#FF8FBF",
+        cb = NeonBorder(body, app, inner_bg="#FFF8FB")
+        cb.grid(row=1, column=0, sticky="nsew", padx=(0, 6), pady=(2, 0))
+        self.case = tk.Text(cb.inner, wrap="word", bg="#FFF8FB", fg=INK, relief="flat",
+                           font=("Microsoft YaHei UI", 11), highlightthickness=0,
                            padx=8, pady=6)
-        self.case.grid(row=1, column=0, sticky="nsew", padx=(0, 6), pady=(2, 0))
+        self.case.pack(fill="both", expand=True)
         self.case.bind("<KeyRelease>", self._on_change)
-        self.chart = ChargeChart(body, app)
-        self.chart.grid(row=1, column=1, sticky="nsew", padx=(6, 0), pady=(2, 0))
+        vb = NeonBorder(body, app, inner_bg=WHITE)
+        vb.grid(row=1, column=1, sticky="nsew", padx=(6, 0), pady=(2, 0))
+        self.chart = ChargeChart(vb.inner, app)
+        self.chart.pack(fill="both", expand=True)
+        self._borders = [cb, vb]
 
         if example:
             self.case.insert("1.0", "嫌疑人持枪抢劫便利店，被警察拦下后拒捕并开枪，然后驾车逃跑还撞坏了路边的车。")
@@ -267,6 +328,8 @@ class SuspectPage(tk.Frame):
 
     def cleanup(self):
         self.chart.cleanup()
+        for b in self._borders:
+            b.cleanup()
 
 
 # ===================== 主程序 =====================
@@ -342,17 +405,30 @@ class App(tk.Tk):
             c.create_image(48, 46, image=self._logo)
         except Exception:
             self._logo = None
-        c.create_text(98, 34, anchor="w", text="织梦星 STAR · 案件罪名分析器",
-                      fill="white", font=("Microsoft YaHei UI", 19, "bold"))
-        c.create_text(100, 64, anchor="w",
-                      text="圣安地列斯州 · STAR Roleplay　💗　一人一页 · 一句话自动算罪",
-                      fill="#FFE3EE", font=("Microsoft YaHei UI", 10))
+        c.create_text(98, 48, anchor="w", text="织梦星 STAR · 案件罪名分析器",
+                      fill="white", font=("Microsoft YaHei UI", 20, "bold"))
         self._stars = []
-        for k, (sx, sy) in enumerate([(W - 56, 28), (W - 96, 58),
-                                      (W - 140, 24), (W - 188, 54)]):
+        for k, (sx, sy) in enumerate([(W - 56, 58), (W - 96, 30),
+                                      (W - 140, 60), (W - 188, 32)]):
             sid = c.create_polygon(self._star_pts(sx, sy, 7), fill=GOLD, outline="")
             self._stars.append([sid, sx, sy, k * 1.7])
+        # 顶上跳动的小熊
+        self._bears = []
+        for k, bx in enumerate((250, 320, 390, 460)):
+            ids = self._bear(c, bx, 16, 9, HOT2 if k % 2 else "#FFB6D5")
+            self._bears.append([ids, bx, 16, k * 1.3, 16.0])
         tk.Frame(self, bg=HOT, height=4).pack(fill="x")
+
+    def _bear(self, c, cx, cy, s, col):
+        ids = []
+        ids.append(c.create_oval(cx - s, cy - s * 0.95, cx - s * 0.25, cy - s * 0.2, fill=col, outline=""))
+        ids.append(c.create_oval(cx + s * 0.25, cy - s * 0.95, cx + s, cy - s * 0.2, fill=col, outline=""))
+        ids.append(c.create_oval(cx - s * 0.85, cy - s * 0.6, cx + s * 0.85, cy + s * 0.85, fill=col, outline=""))
+        ids.append(c.create_oval(cx - s * 0.38, cy + s * 0.12, cx + s * 0.38, cy + s * 0.62, fill="white", outline=""))
+        ids.append(c.create_oval(cx - s * 0.45, cy - s * 0.18, cx - s * 0.22, cy + s * 0.05, fill="#5A2342", outline=""))
+        ids.append(c.create_oval(cx + s * 0.22, cy - s * 0.18, cx + s * 0.45, cy + s * 0.05, fill="#5A2342", outline=""))
+        ids.append(c.create_oval(cx - s * 0.1, cy + s * 0.22, cx + s * 0.1, cy + s * 0.42, fill="#5A2342", outline=""))
+        return ids
 
     def _star_pts(self, cx, cy, ro):
         ri = ro * 0.45
@@ -376,6 +452,13 @@ class App(tk.Tk):
                 tw = 0.5 + 0.5 * math.sin(self._t * 0.07 + ph)
                 self.banner.coords(sid, *self._star_pts(sx, sy, 5 + 3 * tw))
                 self.banner.itemconfig(sid, fill=lerp("#FFE9A0", GOLD, tw))
+            for b in self._bears:
+                ids, bx, by, ph, cur = b
+                ny = by + math.sin(self._t * 0.16 + ph) * 5
+                dy = ny - cur
+                for iid in ids:
+                    self.banner.move(iid, 0, dy)
+                b[4] = ny
             for w in list(self.fx):
                 w.tick(self._t)
         except tk.TclError:
