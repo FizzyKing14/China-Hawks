@@ -25,6 +25,7 @@ SAMPLE_ROSTER = [
 def test_refresh_skips_players_without_salary(monkeypatch, tmp_path):
     monkeypatch.setattr(nba_data, "_fetch_team_list", lambda: SAMPLE_TEAMS)
     monkeypatch.setattr(nba_data, "_fetch_team_roster", lambda team_id: SAMPLE_ROSTER)
+    monkeypatch.setattr(nba_data, "_fetch_hoopshype_salaries", lambda team_id: {})
     monkeypatch.setattr(nba_data, "CACHE_PATH", str(tmp_path / "rosters.json"))
 
     rosters = nba_data.refresh()
@@ -37,9 +38,21 @@ def test_refresh_skips_players_without_salary(monkeypatch, tmp_path):
     assert players[0].years_left == 2
 
 
+def test_refresh_prefers_hoopshype_salary_when_it_disagrees(monkeypatch, tmp_path):
+    monkeypatch.setattr(nba_data, "_fetch_team_list", lambda: SAMPLE_TEAMS)
+    monkeypatch.setattr(nba_data, "_fetch_team_roster", lambda team_id: SAMPLE_ROSTER)
+    monkeypatch.setattr(nba_data, "_fetch_hoopshype_salaries", lambda team_id: {"fake player": 9_000_000.0})
+    monkeypatch.setattr(nba_data, "CACHE_PATH", str(tmp_path / "rosters.json"))
+
+    rosters = nba_data.refresh()
+
+    assert rosters["Test Team"][0].salary == 9_000_000.0
+
+
 def test_load_cached_round_trips(monkeypatch, tmp_path):
     monkeypatch.setattr(nba_data, "_fetch_team_list", lambda: SAMPLE_TEAMS)
     monkeypatch.setattr(nba_data, "_fetch_team_roster", lambda team_id: SAMPLE_ROSTER)
+    monkeypatch.setattr(nba_data, "_fetch_hoopshype_salaries", lambda team_id: {})
     monkeypatch.setattr(nba_data, "CACHE_PATH", str(tmp_path / "rosters.json"))
 
     nba_data.refresh()
@@ -52,3 +65,9 @@ def test_load_cached_round_trips(monkeypatch, tmp_path):
 def test_load_cached_returns_none_when_missing(monkeypatch, tmp_path):
     monkeypatch.setattr(nba_data, "CACHE_PATH", str(tmp_path / "missing.json"))
     assert nba_data.load_cached() is None
+
+
+def test_normalize_name_folds_suffixes():
+    assert nba_data._normalize_name("Jimmy Butler III") == "jimmy butler"
+    assert nba_data._normalize_name("Jimmy Butler") == "jimmy butler"
+    assert nba_data._normalize_name("Gary Payton II") == "gary payton"

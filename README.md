@@ -70,9 +70,13 @@ Pick two teams, then either check a specific trade against the simplified CBA
 salary-match rule, or select a player you want and get auto-suggested
 counter-offer packages from the other team's roster — the "other team offers
 a fair trade" behavior from NBA 2K's trade finder / ESPN's Trade Machine.
-Salary data comes from ESPN's public roster API (no scraping, no API key);
-skill ratings aren't available from a free source, so suggestions rank purely
-on salary fit.
+Salary, position, jersey number, and photo come from ESPN's public roster API
+(no scraping, no API key). ESPN's salary figure is occasionally stale for a
+recently re-signed player, so it's cross-checked against HoopsHype's
+per-team salary page and overridden when the two disagree (confirmed case:
+CJ McCollum's 1yr/$21M deal with Atlanta showed as $30.6M on ESPN alone).
+Skill ratings aren't available from a free source, so suggestions rank
+purely on salary fit.
 
 ### Deploying it with a real URL (Render + a GoDaddy domain)
 
