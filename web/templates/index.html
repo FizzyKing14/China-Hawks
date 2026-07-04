@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>NBA Trade Balancer</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+    h1 { font-size: 1.4rem; }
+    h2 { font-size: 1.1rem; margin-top: 2rem; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+    th, td { text-align: left; padding: 0.25rem 0.5rem; border-bottom: 1px solid #ddd; font-size: 0.9rem; }
+    .roster-cols { display: flex; gap: 2rem; }
+    .roster-cols > div { flex: 1; }
+    select, button { font-size: 1rem; padding: 0.3rem; }
+    .ok { color: #1a7f37; font-weight: bold; }
+    .no { color: #cf222e; font-weight: bold; }
+    .offer { border: 1px solid #ddd; border-radius: 6px; padding: 0.75rem; margin: 0.5rem 0; }
+    .reasons { font-size: 0.85rem; color: #555; }
+    footer { margin-top: 3rem; font-size: 0.8rem; color: #888; }
+  </style>
+</head>
+<body>
+  <h1>NBA Trade Balancer</h1>
+  <p>Real rosters + salaries via ESPN. Pick two teams, then either check a direct
+     trade against the CBA salary-match rule, or ask for auto-suggested counter offers.
+     <a href="{{ url_for('refresh', team_a=team_a, team_b=team_b) }}">Refresh live data</a></p>
+
+  <form method="get" action="{{ url_for('index') }}">
+    <label>Your team:
+      <select name="team_a">
+        <option value="">-- select --</option>
+        {% for t in teams %}
+          <option value="{{ t }}" {{ "selected" if t == team_a else "" }}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Other team:
+      <select name="team_b">
+        <option value="">-- select --</option>
+        {% for t in teams %}
+          <option value="{{ t }}" {{ "selected" if t == team_b else "" }}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit">Load rosters</button>
+  </form>
+
+  {% if error %}
+    <p class="no">{{ error }}</p>
+  {% endif %}
+
+  {% if team_a and team_b %}
+    <h2>Direct trade check</h2>
+    <form method="post" action="{{ url_for('validate') }}">
+      <input type="hidden" name="team_a" value="{{ team_a }}">
+      <input type="hidden" name="team_b" value="{{ team_b }}">
+      <div class="roster-cols">
+        <div>
+          <strong>{{ team_a }} sends</strong>
+          <table>
+            {% for p in roster_a %}
+              <tr>
+                <td><input type="checkbox" name="give" value="{{ p.name }}"></td>
+                <td>{{ p.name }}</td>
+                <td>${{ "{:,.0f}".format(p.salary) }}</td>
+              </tr>
+            {% endfor %}
+          </table>
+        </div>
+        <div>
+          <strong>{{ team_b }} sends</strong>
+          <table>
+            {% for p in roster_b %}
+              <tr>
+                <td><input type="checkbox" name="get" value="{{ p.name }}"></td>
+                <td>{{ p.name }}</td>
+                <td>${{ "{:,.0f}".format(p.salary) }}</td>
+              </tr>
+            {% endfor %}
+          </table>
+        </div>
+      </div>
+      <button type="submit">Validate trade</button>
+    </form>
+
+    {% if validation %}
+      <p>
+        {% if validation.approved %}
+          <span class="ok">Legal trade</span>
+        {% else %}
+          <span class="no">Blocked</span>
+        {% endif %}
+        &mdash; {{ team_a }} sends ${{ "{:,.0f}".format(validation.side_a_salary) }},
+        {{ team_b }} sends ${{ "{:,.0f}".format(validation.side_b_salary) }}.
+        {{ validation.reason }}
+      </p>
+    {% endif %}
+
+    <h2>Auto-suggest a counter offer</h2>
+    <p>Pick the {{ team_b }} player(s) you want; we'll search {{ team_a }}'s roster for packages that clear the salary-match rule.</p>
+    <form method="post" action="{{ url_for('suggest') }}">
+      <input type="hidden" name="team_a" value="{{ team_a }}">
+      <input type="hidden" name="team_b" value="{{ team_b }}">
+      <table>
+        {% for p in roster_b %}
+          <tr>
+            <td><input type="checkbox" name="want" value="{{ p.name }}"></td>
+            <td>{{ p.name }}</td>
+            <td>${{ "{:,.0f}".format(p.salary) }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+      <button type="submit">Suggest counter offers</button>
+    </form>
+
+    {% if offers %}
+      <h2>Suggested packages</h2>
+      {% for o in offers %}
+        <div class="offer">
+          <strong>{{ o.give | map(attribute="name") | join(", ") }}</strong>
+          <span> (score {{ o.score }})</span>
+          <div class="reasons">{% for r in o.reasons %}{{ r }}<br>{% endfor %}</div>
+        </div>
+      {% endfor %}
+    {% elif offers is not none %}
+      <p>No combination from {{ team_a }}'s roster clears the salary-match rule.</p>
+    {% endif %}
+  {% endif %}
+
+  <footer>Salary/contract data via ESPN's public roster API, cached locally. Ratings are unknown for real players (no free data source), so suggestions rank purely on salary fit.</footer>
+</body>
+</html>

@@ -12,3 +12,6 @@ venv/
 # Secrets / env
 .env
 *.local
+
+# Cached live data (regenerate with src/nba_data.py refresh() or /refresh route)
+data/nba_rosters.json

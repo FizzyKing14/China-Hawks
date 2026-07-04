@@ -23,6 +23,8 @@ The design philosophy, learned from studying several open-source trading bots:
 | `src/news.py` | Deterministic news-catalyst classifier (bullish/bearish/halt-risk) |
 | `src/risk.py` | Position sizing, exposure caps, exclusions, PDT guard |
 | `src/nba_trade.py` | NBA-style trade balancer: CBA salary-match validation + counter-offer search (NBA 2K trade-finder style) |
+| `src/nba_data.py` | Fetches real rosters + contract salaries from ESPN's public API, cached to `data/nba_rosters.json` |
+| `web/app.py` | Small Flask UI over `nba_trade.py` — pick two teams, validate a trade, or auto-suggest counter offers |
 | `tests/` | Unit tests for the deterministic core |
 
 ## How it fits together
@@ -52,6 +54,25 @@ python -m pytest tests/ -q
 ```
 
 Then tell the agent to run a cycle following `AGENT_PLAYBOOK.md`.
+
+## NBA trade balancer (side project)
+
+A small unrelated tool lives alongside the trading kit: an NBA trade
+validator/suggester with a Flask UI.
+
+```bash
+pip install -r requirements.txt
+python -c "from src import nba_data; nba_data.refresh()"   # pulls live rosters from ESPN
+python web/app.py                                          # http://127.0.0.1:5000
+```
+
+Pick two teams, then either check a specific trade against the simplified CBA
+salary-match rule, or select a player you want and get auto-suggested
+counter-offer packages from the other team's roster — the "other team offers
+a fair trade" behavior from NBA 2K's trade finder / ESPN's Trade Machine.
+Salary data comes from ESPN's public roster API (no scraping, no API key);
+skill ratings aren't available from a free source, so suggestions rank purely
+on salary fit.
 
 ## ⚠️ Disclaimer
 
