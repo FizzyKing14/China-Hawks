@@ -30,6 +30,7 @@ GREEN = "#3FBF87"; YELLOW = "#F2C14E"; REDC = "#FF6B81"
 TRACK = "#F4E3EC"
 CAP = D.MAX_TOTAL_MONTHS
 NONCRIM = ("内务违规", "服务器违规")
+CUTE = "幼圆"          # 可爱圆体（Windows 自带；缺失自动回退）
 
 
 def _rgb(h): return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
@@ -45,23 +46,37 @@ def _rr(x0, y0, x1, y1, r):
 
 
 def confidence(matched):
-    """相似度: 命中关键词越多、越具体 → 越高。范围 30~98。"""
+    """相似度: 直接命中罪名核心词就高，命中越多、词越具体越高。范围 60~99。"""
     m = len(matched)
     lmax = max(len(k) for k in matched)
-    return max(30, min(98, 40 + (m - 1) * 13 + (lmax - 2) * 8))
+    return max(60, min(99, 82 + (lmax - 2) * 6 + (m - 1) * 6))
 
 
 def tier(pct):
     return GREEN if pct >= 80 else (YELLOW if pct >= 50 else REDC)
 
 
+# 警察对嫌犯依法用武力 → 不算平民袭击（伤到公民才追责，见规章速查“两层并罚”）
+_ASSAULT_SKIP = ("故意袭击罪", "持有危险武器人身攻击罪", "威胁罪")
+
+
+def _lawful_police_force(text):
+    police = any(w in text for w in ("警察", "警员", "警官", "巡警", "执法", "条子", "cop"))
+    suspect = any(w in text for w in ("嫌疑人", "嫌犯", "疑犯", "罪犯", "逃犯", "通缉犯", "劫匪", "歹徒"))
+    civ = any(w in text for w in ("公民", "平民", "市民", "路人", "无辜", "群众", "店员", "行人", "百姓"))
+    return police and suspect and not civ
+
+
 def analyze(text):
     text = text or ""
     crim, vio = [], []
+    lawful = _lawful_police_force(text)
     if text.strip():
         for chap, name, kind, months, fine, kws, note in D.CHARGES:
             matched = [k for k in kws if k in text]
             if not matched:
+                continue
+            if lawful and name in _ASSAULT_SKIP:
                 continue
             if kind in NONCRIM:
                 vio.append((name, note))
@@ -281,8 +296,8 @@ class SuspectPage(tk.Frame):
         self.app = app
         # 名字（上方）
         top = tk.Frame(self, bg=WHITE); top.pack(fill="x", padx=12, pady=(12, 4))
-        tk.Label(top, text="名字：", bg=WHITE, fg=NAVY,
-                 font=("Microsoft YaHei UI", 11, "bold")).pack(side="left")
+        tk.Label(top, text="🌸 名字：", bg=WHITE, fg=NAVY,
+                 font=(CUTE, 12, "bold")).pack(side="left")
         self.name = tk.Entry(top, relief="flat", bg="#FFF8FB", fg=INK,
                             font=("Microsoft YaHei UI", 11), highlightthickness=2,
                             highlightbackground=LINE, highlightcolor="#FF8FBF")
@@ -294,10 +309,10 @@ class SuspectPage(tk.Frame):
         body.columnconfigure(0, weight=1, uniform="col")
         body.columnconfigure(1, weight=1, uniform="col")
         body.rowconfigure(1, weight=1)
-        tk.Label(body, text="📝 案件经过", bg=PINK, fg=NAVY, anchor="w", padx=8, pady=3,
-                 font=("Microsoft YaHei UI", 10, "bold")).grid(row=0, column=0, sticky="ew", padx=(0, 6))
-        tk.Label(body, text="⚖ 刑事罪名", bg=PINK, fg=NAVY, anchor="w",
-                 padx=8, pady=3, font=("Microsoft YaHei UI", 10, "bold")).grid(
+        tk.Label(body, text="📝 案件经过 ✍️", bg=PINK, fg=NAVY, anchor="w", padx=8, pady=3,
+                 font=(CUTE, 11, "bold")).grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        tk.Label(body, text="⚖️ 刑事罪名 🎀", bg=PINK, fg=NAVY, anchor="w",
+                 padx=8, pady=3, font=(CUTE, 11, "bold")).grid(
                  row=0, column=1, sticky="ew", padx=(6, 0))
         cb = NeonBorder(body, app, inner_bg="#FFF8FB")
         cb.grid(row=1, column=0, sticky="nsew", padx=(0, 6), pady=(2, 0))
@@ -356,8 +371,8 @@ class App(tk.Tk):
 
         # 底部小 banner
         foot = tk.Frame(self, bg=PINK); foot.pack(fill="x")
-        tk.Label(foot, text="✨ 织梦星 STAR　·　原创：袁尘 ✨", bg=PINK, fg=NAVY,
-                 font=("Microsoft YaHei UI", 9, "bold")).pack(pady=3)
+        tk.Label(foot, text="🎀✨ 织梦星 STAR　·　原创：袁尘 ✨🐻", bg=PINK, fg=NAVY,
+                 font=(CUTE, 10, "bold")).pack(pady=3)
 
         self._alive = True
         self._t = 0
@@ -469,11 +484,11 @@ class App(tk.Tk):
     def _build_analyzer(self, nb):
         f = tk.Frame(nb, bg=WHITE); nb.add(f, text="  算罪台  ")
         bar = tk.Frame(f, bg=WHITE); bar.pack(fill="x", padx=8, pady=(8, 0))
-        RoundButton(bar, "＋ 添加嫌疑人", self._add_suspect, w=130, bg=WHITE).pack(side="left")
-        RoundButton(bar, "－ 删除当前", self._del_suspect, w=120, base=PLUM,
+        RoundButton(bar, "🎀 添加嫌疑人", self._add_suspect, w=140, bg=WHITE).pack(side="left")
+        RoundButton(bar, "🗑 删除当前", self._del_suspect, w=126, base=PLUM,
                     hover="#C79AE0", press="#8E5BB0", bg=WHITE).pack(side="left", padx=8)
-        tk.Label(bar, text="（可添加多名嫌疑人，每人一页）", bg=WHITE, fg=MUTE,
-                 font=("Microsoft YaHei UI", 9)).pack(side="left", padx=4)
+        tk.Label(bar, text="🐻 可以添加好多个嫌疑人哦～ 每人一页 💕", bg=WHITE, fg=HOT,
+                 font=(CUTE, 10, "bold")).pack(side="left", padx=6)
 
         self.inner = ttk.Notebook(f, style="Sus.TNotebook")
         self.inner.pack(fill="both", expand=True, padx=8, pady=6)
