@@ -22,6 +22,7 @@ The design philosophy, learned from studying several open-source trading bots:
 | `src/signals.py` | Combines indicators (+ news tilt) into a `buy` / `sell` / `hold` signal |
 | `src/news.py` | Deterministic news-catalyst classifier (bullish/bearish/halt-risk) |
 | `src/risk.py` | Position sizing, exposure caps, exclusions, PDT guard |
+| `src/nba_trade.py` | NBA-style trade balancer: CBA salary-match validation + counter-offer search (NBA 2K trade-finder style) |
 | `tests/` | Unit tests for the deterministic core |
 
 ## How it fits together
