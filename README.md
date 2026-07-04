@@ -74,6 +74,27 @@ Salary data comes from ESPN's public roster API (no scraping, no API key);
 skill ratings aren't available from a free source, so suggestions rank purely
 on salary fit.
 
+### Deploying it with a real URL (Render + a GoDaddy domain)
+
+`Procfile` and `render.yaml` are already set up for this. To get a live,
+always-on URL and point your own domain at it:
+
+1. **Deploy on Render** (free tier): go to [render.com](https://render.com),
+   sign up, click *New → Blueprint*, connect this GitHub repo, and pick the
+   `claude/nba-training-plugins-ye8pnn` branch (or whichever branch this
+   merges into). Render reads `render.yaml` and deploys automatically —
+   you'll get a URL like `https://nba-trade-balancer.onrender.com`.
+2. **Point your GoDaddy domain at it:** in the Render service's *Settings →
+   Custom Domains*, add your domain (e.g. `trade.yourdomain.com`) — Render
+   will show you a CNAME target. In GoDaddy's DNS management for your
+   domain, add a CNAME record: Host = `trade` (or whatever subdomain you
+   want), Value = the target Render gave you. DNS propagation usually takes
+   a few minutes to an hour.
+3. Once that CNAME resolves, your GoDaddy domain serves the live app.
+
+Note: Render's free tier spins the service down after inactivity, so the
+first request after a while takes ~30s to wake back up.
+
 ## ⚠️ Disclaimer
 
 Educational software. Trading equities carries real risk of loss. Start in
