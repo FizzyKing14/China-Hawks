@@ -24,6 +24,9 @@ class Player:
     rating: int = 75          # overall rating, 0-99
     age: int = 25
     years_left: int = 1
+    headshot: str = ""        # image URL, empty when unknown
+    position: str = ""
+    jersey: str = ""
 
 
 @dataclass

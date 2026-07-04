@@ -4,29 +4,109 @@
   <meta charset="utf-8">
   <title>NBA Trade Balancer</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #222; }
-    h1 { font-size: 1.4rem; }
-    h2 { font-size: 1.1rem; margin-top: 2rem; }
-    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
-    th, td { text-align: left; padding: 0.25rem 0.5rem; border-bottom: 1px solid #ddd; font-size: 0.9rem; }
-    .roster-cols { display: flex; gap: 2rem; }
-    .roster-cols > div { flex: 1; }
-    select, button { font-size: 1rem; padding: 0.3rem; }
-    .ok { color: #1a7f37; font-weight: bold; }
-    .no { color: #cf222e; font-weight: bold; }
-    .offer { border: 1px solid #ddd; border-radius: 6px; padding: 0.75rem; margin: 0.5rem 0; }
-    .reasons { font-size: 0.85rem; color: #555; }
-    footer { margin-top: 3rem; font-size: 0.8rem; color: #888; }
+    :root {
+      --bg: #0f1115;
+      --panel: #1a1d24;
+      --card: #1e222b;
+      --border: #2c313c;
+      --border-hover: #4a5568;
+      --accent: #5b9dff;
+      --accent-soft: rgba(91, 157, 255, 0.15);
+      --text: #e8eaed;
+      --muted: #8b93a1;
+      --ok: #3ecf8e;
+      --no: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 1100px;
+      margin: 2rem auto;
+      padding: 0 1.25rem 4rem;
+      background: var(--bg);
+      color: var(--text);
+    }
+    a { color: var(--accent); }
+    h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
+    h2 { font-size: 1.1rem; margin: 2.5rem 0 0.25rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+    .subtitle { color: var(--muted); font-size: 0.9rem; margin-top: 0; }
+
+    .team-picker {
+      display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+      padding: 1rem; margin-top: 1.25rem;
+    }
+    .team-picker label { font-size: 0.85rem; color: var(--muted); }
+    select, button {
+      font-size: 0.9rem; padding: 0.5rem 0.75rem; border-radius: 6px;
+      border: 1px solid var(--border); background: #262b35; color: var(--text);
+    }
+    button { cursor: pointer; background: var(--accent); border-color: var(--accent); color: #06131f; font-weight: 600; }
+    button:hover { filter: brightness(1.08); }
+
+    .roster-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem; }
+    .roster-cols h3 { font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--muted); font-weight: 600; }
+
+    .roster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.6rem; }
+
+    .card {
+      position: relative;
+      display: flex; flex-direction: column; align-items: center; text-align: center;
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 0.7rem 0.4rem 0.6rem; cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .card:hover { border-color: var(--border-hover); }
+    .card:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+    .card input { position: absolute; top: 6px; right: 6px; width: 15px; height: 15px; accent-color: var(--accent); }
+    .card .avatar {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: #2a2f3a center / cover no-repeat; margin-bottom: 0.4rem; flex-shrink: 0;
+    }
+    .card .name { font-size: 0.78rem; font-weight: 600; line-height: 1.2; padding: 0 12px; }
+    .card .meta { font-size: 0.65rem; color: var(--muted); margin-top: 2px; }
+    .card .salary { font-size: 0.72rem; color: var(--ok); margin-top: 4px; font-weight: 600; }
+
+    .actions { margin-top: 1rem; }
+
+    .result-banner {
+      margin-top: 1rem; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.9rem;
+      border: 1px solid var(--border); background: var(--panel);
+    }
+    .result-banner .tag { font-weight: 700; padding: 2px 8px; border-radius: 5px; margin-right: 0.5rem; font-size: 0.75rem; }
+    .tag.ok { background: rgba(62, 207, 142, 0.15); color: var(--ok); }
+    .tag.no { background: rgba(255, 107, 107, 0.15); color: var(--no); }
+    .error-banner { color: var(--no); margin-top: 0.75rem; font-size: 0.9rem; }
+
+    .offer-grid { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.75rem; }
+    .offer {
+      border: 1px solid var(--border); border-radius: 10px; padding: 0.85rem 1rem; background: var(--panel);
+    }
+    .offer-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.4rem; }
+    .offer-header .faces { display: flex; }
+    .offer-header .faces .avatar {
+      width: 34px; height: 34px; border-radius: 50%; background-color: #2a2f3a;
+      background-position: center; background-size: cover; background-repeat: no-repeat;
+      border: 2px solid var(--panel); margin-left: -10px;
+    }
+    .offer-header .faces .avatar:first-child { margin-left: 0; }
+    .offer-header .names { font-weight: 600; font-size: 0.9rem; }
+    .offer-header .score { margin-left: auto; font-size: 0.8rem; color: var(--muted); }
+    .offer .reasons { font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
+
+    footer { margin-top: 3rem; font-size: 0.78rem; color: var(--muted); }
   </style>
 </head>
 <body>
   <h1>NBA Trade Balancer</h1>
-  <p>Real rosters + salaries via ESPN. Pick two teams, then either check a direct
-     trade against the CBA salary-match rule, or ask for auto-suggested counter offers.
-     <a href="{{ url_for('refresh', team_a=team_a, team_b=team_b) }}">Refresh live data</a></p>
+  <p class="subtitle">
+    Real rosters, salaries &amp; photos via ESPN. Pick two teams, then check a
+    direct trade against the CBA salary-match rule, or auto-suggest counter offers.
+    <a href="{{ url_for('refresh', team_a=team_a, team_b=team_b) }}">Refresh live data</a>
+  </p>
 
-  <form method="get" action="{{ url_for('index') }}">
-    <label>Your team:
+  <form method="get" action="{{ url_for('index') }}" class="team-picker">
+    <label>Your team
       <select name="team_a">
         <option value="">-- select --</option>
         {% for t in teams %}
@@ -34,7 +114,7 @@
         {% endfor %}
       </select>
     </label>
-    <label>Other team:
+    <label>Other team
       <select name="team_b">
         <option value="">-- select --</option>
         {% for t in teams %}
@@ -46,8 +126,18 @@
   </form>
 
   {% if error %}
-    <p class="no">{{ error }}</p>
+    <p class="error-banner">{{ error }}</p>
   {% endif %}
+
+  {% macro player_card(p, field) %}
+    <label class="card">
+      <input type="checkbox" name="{{ field }}" value="{{ p.name }}">
+      <div class="avatar" {% if p.headshot %}style="background-image: url('{{ p.headshot }}')"{% endif %}></div>
+      <div class="name">{{ p.name }}</div>
+      <div class="meta">{{ p.position }}{% if p.jersey %} · #{{ p.jersey }}{% endif %}</div>
+      <div class="salary">${{ "{:,.0f}".format(p.salary) }}</div>
+    </label>
+  {% endmacro %}
 
   {% if team_a and team_b %}
     <h2>Direct trade check</h2>
@@ -56,77 +146,68 @@
       <input type="hidden" name="team_b" value="{{ team_b }}">
       <div class="roster-cols">
         <div>
-          <strong>{{ team_a }} sends</strong>
-          <table>
-            {% for p in roster_a %}
-              <tr>
-                <td><input type="checkbox" name="give" value="{{ p.name }}"></td>
-                <td>{{ p.name }}</td>
-                <td>${{ "{:,.0f}".format(p.salary) }}</td>
-              </tr>
-            {% endfor %}
-          </table>
+          <h3>{{ team_a }} sends</h3>
+          <div class="roster-grid">
+            {% for p in roster_a %}{{ player_card(p, "give") }}{% endfor %}
+          </div>
         </div>
         <div>
-          <strong>{{ team_b }} sends</strong>
-          <table>
-            {% for p in roster_b %}
-              <tr>
-                <td><input type="checkbox" name="get" value="{{ p.name }}"></td>
-                <td>{{ p.name }}</td>
-                <td>${{ "{:,.0f}".format(p.salary) }}</td>
-              </tr>
-            {% endfor %}
-          </table>
+          <h3>{{ team_b }} sends</h3>
+          <div class="roster-grid">
+        {% for p in roster_b %}{{ player_card(p, "get") }}{% endfor %}
+          </div>
         </div>
       </div>
-      <button type="submit">Validate trade</button>
+      <div class="actions"><button type="submit">Validate trade</button></div>
     </form>
 
     {% if validation %}
-      <p>
+      <div class="result-banner">
         {% if validation.approved %}
-          <span class="ok">Legal trade</span>
+          <span class="tag ok">LEGAL</span>
         {% else %}
-          <span class="no">Blocked</span>
+          <span class="tag no">BLOCKED</span>
         {% endif %}
-        &mdash; {{ team_a }} sends ${{ "{:,.0f}".format(validation.side_a_salary) }},
+        {{ team_a }} sends ${{ "{:,.0f}".format(validation.side_a_salary) }},
         {{ team_b }} sends ${{ "{:,.0f}".format(validation.side_b_salary) }}.
         {{ validation.reason }}
-      </p>
+      </div>
     {% endif %}
 
     <h2>Auto-suggest a counter offer</h2>
-    <p>Pick the {{ team_b }} player(s) you want; we'll search {{ team_a }}'s roster for packages that clear the salary-match rule.</p>
+    <p class="subtitle">Pick the {{ team_b }} player(s) you want; we'll search {{ team_a }}'s roster for packages that clear the salary-match rule.</p>
     <form method="post" action="{{ url_for('suggest') }}">
       <input type="hidden" name="team_a" value="{{ team_a }}">
       <input type="hidden" name="team_b" value="{{ team_b }}">
-      <table>
-        {% for p in roster_b %}
-          <tr>
-            <td><input type="checkbox" name="want" value="{{ p.name }}"></td>
-            <td>{{ p.name }}</td>
-            <td>${{ "{:,.0f}".format(p.salary) }}</td>
-          </tr>
-        {% endfor %}
-      </table>
-      <button type="submit">Suggest counter offers</button>
+      <div class="roster-grid">
+        {% for p in roster_b %}{{ player_card(p, "want") }}{% endfor %}
+      </div>
+      <div class="actions"><button type="submit">Suggest counter offers</button></div>
     </form>
 
     {% if offers %}
       <h2>Suggested packages</h2>
-      {% for o in offers %}
-        <div class="offer">
-          <strong>{{ o.give | map(attribute="name") | join(", ") }}</strong>
-          <span> (score {{ o.score }})</span>
-          <div class="reasons">{% for r in o.reasons %}{{ r }}<br>{% endfor %}</div>
-        </div>
-      {% endfor %}
+      <div class="offer-grid">
+        {% for o in offers %}
+          <div class="offer">
+            <div class="offer-header">
+              <div class="faces">
+                {% for p in o.give %}
+                  <div class="avatar" {% if p.headshot %}style="background-image: url('{{ p.headshot }}')"{% endif %}></div>
+                {% endfor %}
+              </div>
+              <div class="names">{{ o.give | map(attribute="name") | join(", ") }}</div>
+              <div class="score">score {{ o.score }}</div>
+            </div>
+            <div class="reasons">{% for r in o.reasons %}{{ r }}<br>{% endfor %}</div>
+          </div>
+        {% endfor %}
+      </div>
     {% elif offers is not none %}
-      <p>No combination from {{ team_a }}'s roster clears the salary-match rule.</p>
+      <p class="subtitle">No combination from {{ team_a }}'s roster clears the salary-match rule.</p>
     {% endif %}
   {% endif %}
 
-  <footer>Salary/contract data via ESPN's public roster API, cached locally. Ratings are unknown for real players (no free data source), so suggestions rank purely on salary fit.</footer>
+  <footer>Salary, contract and photo data via ESPN's public roster API, cached locally. Ratings are unknown for real players (no free data source), so suggestions rank purely on salary fit.</footer>
 </body>
 </html>

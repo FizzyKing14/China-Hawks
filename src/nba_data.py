@@ -56,6 +56,9 @@ def refresh() -> dict[str, list[Player]]:
             salary = contract.get("salary")
             if not salary:
                 continue  # two-way / non-standard contracts without a cap number
+            headshot = (a.get("headshot") or {}).get("href", "")
+            position = (a.get("position") or {}).get("abbreviation", "")
+            jersey = a.get("jersey", "") or ""
             players.append(
                 Player(
                     name=a["fullName"],
@@ -64,6 +67,9 @@ def refresh() -> dict[str, list[Player]]:
                     rating=0,
                     age=a.get("age", 0) or 0,
                     years_left=contract.get("yearsRemaining", 0) or 0,
+                    headshot=headshot,
+                    position=position,
+                    jersey=jersey,
                 )
             )
             raw_players.append(
@@ -72,7 +78,9 @@ def refresh() -> dict[str, list[Player]]:
                     "salary": salary,
                     "age": a.get("age", 0) or 0,
                     "years_left": contract.get("yearsRemaining", 0) or 0,
-                    "position": (a.get("position") or {}).get("abbreviation", ""),
+                    "position": position,
+                    "headshot": headshot,
+                    "jersey": jersey,
                 }
             )
         rosters[team_name] = players
@@ -100,6 +108,9 @@ def load_cached() -> Optional[dict[str, list[Player]]]:
                 rating=0,
                 age=p.get("age", 0),
                 years_left=p.get("years_left", 0),
+                headshot=p.get("headshot", ""),
+                position=p.get("position", ""),
+                jersey=p.get("jersey", ""),
             )
             for p in players
         ]
