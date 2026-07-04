@@ -22,6 +22,9 @@ The design philosophy, learned from studying several open-source trading bots:
 | `src/signals.py` | Combines indicators (+ news tilt) into a `buy` / `sell` / `hold` signal |
 | `src/news.py` | Deterministic news-catalyst classifier (bullish/bearish/halt-risk) |
 | `src/risk.py` | Position sizing, exposure caps, exclusions, PDT guard |
+| `src/nba_trade.py` | NBA-style trade balancer: CBA salary-match validation + counter-offer search (NBA 2K trade-finder style) |
+| `src/nba_data.py` | Fetches real rosters + contract salaries from ESPN's public API, cached to `data/nba_rosters.json` |
+| `web/app.py` | Small Flask UI over `nba_trade.py` — pick two teams, validate a trade, or auto-suggest counter offers |
 | `tests/` | Unit tests for the deterministic core |
 
 ## How it fits together
@@ -51,6 +54,50 @@ python -m pytest tests/ -q
 ```
 
 Then tell the agent to run a cycle following `AGENT_PLAYBOOK.md`.
+
+## NBA trade balancer (side project)
+
+A small unrelated tool lives alongside the trading kit: an NBA trade
+validator/suggester with a Flask UI.
+
+```bash
+pip install -r requirements.txt
+python -c "from src import nba_data; nba_data.refresh()"   # pulls live rosters from ESPN
+python web/app.py                                          # http://127.0.0.1:5000
+```
+
+Pick two teams, then either check a specific trade against the simplified CBA
+salary-match rule, or select a player you want and get auto-suggested
+counter-offer packages from the other team's roster — the "other team offers
+a fair trade" behavior from NBA 2K's trade finder / ESPN's Trade Machine.
+Salary, position, jersey number, and photo come from ESPN's public roster API
+(no scraping, no API key). ESPN's salary figure is occasionally stale for a
+recently re-signed player, so it's cross-checked against HoopsHype's
+per-team salary page and overridden when the two disagree (confirmed case:
+CJ McCollum's 1yr/$21M deal with Atlanta showed as $30.6M on ESPN alone).
+Skill ratings aren't available from a free source, so suggestions rank
+purely on salary fit.
+
+### Deploying it with a real URL (Render + a GoDaddy domain)
+
+`Procfile` and `render.yaml` are already set up for this. To get a live,
+always-on URL and point your own domain at it:
+
+1. **Deploy on Render** (free tier): go to [render.com](https://render.com),
+   sign up, click *New → Blueprint*, connect this GitHub repo, and pick the
+   `claude/nba-training-plugins-ye8pnn` branch (or whichever branch this
+   merges into). Render reads `render.yaml` and deploys automatically —
+   you'll get a URL like `https://nba-trade-balancer.onrender.com`.
+2. **Point your GoDaddy domain at it:** in the Render service's *Settings →
+   Custom Domains*, add your domain (e.g. `trade.yourdomain.com`) — Render
+   will show you a CNAME target. In GoDaddy's DNS management for your
+   domain, add a CNAME record: Host = `trade` (or whatever subdomain you
+   want), Value = the target Render gave you. DNS propagation usually takes
+   a few minutes to an hour.
+3. Once that CNAME resolves, your GoDaddy domain serves the live app.
+
+Note: Render's free tier spins the service down after inactivity, so the
+first request after a while takes ~30s to wake back up.
 
 ## ⚠️ Disclaimer
 

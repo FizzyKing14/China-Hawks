@@ -2,3 +2,7 @@
 # These are for development / running the kit.
 pytest>=7.0
 PyYAML>=6.0
+
+# Only needed for web/app.py (the NBA trade balancer UI)
+Flask>=3.0
+gunicorn>=21.0   # production WSGI server, used by Procfile / render.yaml
